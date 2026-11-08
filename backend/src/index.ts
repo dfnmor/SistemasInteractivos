@@ -10,7 +10,7 @@ import recompensasRoutes from './routes/recompensasRoutes';
 dotenv.config();
 
 const app = express();
-const PORT = Number(process.env.PORT) || 4000;
+const PORT = Number(process.env.PORT) || 5174;
 
 app.use(
   cors({
