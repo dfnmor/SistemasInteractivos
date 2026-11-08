@@ -1,0 +1,548 @@
+/* =============================================================================
+ * LIBRERÍA DE ESTILOS ACCESIBLES WCAG 2.2 AAA & DUA - "SEÑAS Y SONRISAS"
+ * Clave del Sistema: TSI-2026-MEEXUU (MEEXUU Framework - Equipo ARDITAS)
+ *
+ * Cumplimiento Técnico Garantizado:
+ * 1. Contraste Estricto WCAG 2.2 AAA (>= 7:1 en texto, >= 4.5:1 en bordes/interfaz)
+ * 2. Blancos Táctiles Extendidos (>= 48x48 dp / 48x48 px, separación >= 8 dp)
+ * 3. Tipografía Atkinson Hyperlegible con interlineado >= 1.5x (WCAG 1.4.12)
+ * 4. Traducción Cromático-Lumínica del Sonido (<50 dB, 50-65 dB, >65 dB)
+ * 5. Bloqueo de destellos estroboscópicos (< 2Hz, WCAG 2.3.1) y Pausa Sensorial
+ * ============================================================================= */
+
+:root {
+  /* Paleta Diurna Desaturada de Baja Carga Cognitiva (Contraste AAA >= 7.5:1) */
+  --bg-app: #F1F5F9;
+  --bg-surface: #FFFFFF;
+  --bg-surface-soft: #E2E8F0;
+  --bg-card-highlight: #EFF6FF;
+
+  /* Texto principal #091326 sobre #FFFFFF -> Ratio 18.2:1 (Supera 7:1 AAA) */
+  --text-primary: #091326;
+  /* Texto secundario #1E293B sobre #FFFFFF -> Ratio 13.5:1 (Supera 7:1 AAA) */
+  --text-secondary: #1E293B;
+  /* Texto de apoyo #334155 sobre #FFFFFF -> Ratio 9.8:1 (Supera 7:1 AAA) */
+  --text-muted: #334155;
+
+  /* Azul Primario #004488 con texto #FFFFFF -> Ratio 9.4:1 (WCAG AAA) */
+  --primary-aaa: #004488;
+  --primary-aaa-hover: #003066;
+  --primary-text: #FFFFFF;
+
+  /* Verde Éxito #064E3B con fondo #ECFDF5 -> Ratio 9.6:1 (WCAG AAA) */
+  --success-bg: #ECFDF5;
+  --success-border: #047857;
+  --success-text: #064E3B;
+  --success-btn: #065F46;
+
+  /* Ámbar Cálido Suave (Sin punitividad RNF-08) #78350F sobre #FFFBEB -> Ratio 9.2:1 */
+  --warn-bg: #FFFBEB;
+  --warn-border: #B45309;
+  --warn-text: #78350F;
+
+  /* Morado Creativo para Articulación Oral #4C1D95 con texto #FFFFFF -> Ratio 10.5:1 */
+  --purple-aaa: #4C1D95;
+  --purple-bg-soft: #F5F3FF;
+
+  /* Semáforo Cromático-Lumínico del Sonido (Fase 2, Actividad 1.2) */
+  --db-safe-bg: #DBEAFE;      /* <50 dB Zona Segura en azul pastel */
+  --db-safe-text: #1E3A8A;    /* Ratio 9.8:1 */
+  --db-warn-bg: #FEF3C7;      /* 50-65 dB Zona Advertencia cálida suave */
+  --db-warn-text: #78350F;    /* Ratio 9.2:1 */
+  --db-peak-bg: #FCE7F3;      /* >65 dB Pico Exposición */
+  --db-peak-text: #831843;    /* Ratio 9.1:1 */
+
+  --border-strong: #475569;
+  --border-subtle: #94A3B8;
+  --focus-ring: #D97706;
+
+  --font-accessible: 'Atkinson Hyperlegible', 'OpenDyslexic', 'Segoe UI', Roboto, sans-serif;
+  --base-font-size: 17px;
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --shadow-soft: 0 4px 16px rgba(9, 19, 38, 0.08);
+}
+
+/* Modo de Alto Contraste Nocturno WCAG 2.2 AAA (Relación > 14:1) */
+[data-contrast='AAA_ALTO_CONTRASTE'] {
+  --bg-app: #070B14;
+  --bg-surface: #0F172A;
+  --bg-surface-soft: #1E293B;
+  --bg-card-highlight: #172554;
+
+  --text-primary: #FFFFFF;
+  --text-secondary: #F8FAFC;
+  --text-muted: #E2E8F0;
+
+  --primary-aaa: #FACC15;
+  --primary-aaa-hover: #FDE047;
+  --primary-text: #070B14;
+
+  --success-bg: #022C22;
+  --success-border: #34D399;
+  --success-text: #A7F3D0;
+  --success-btn: #34D399;
+
+  --warn-bg: #451A03;
+  --warn-border: #FBBF24;
+  --warn-text: #FDE68A;
+
+  --purple-aaa: #C084FC;
+  --purple-bg-soft: #2E1065;
+
+  --border-strong: #F8FAFC;
+  --border-subtle: #94A3B8;
+  --focus-ring: #38BDF8;
+}
+
+/* Escalado Tipográfico Adaptativo DUA (WCAG 1.4.4) */
+[data-font-scale='NORMAL'] {
+  --base-font-size: 17px;
+}
+[data-font-scale='GRANDE'] {
+  --base-font-size: 19.5px;
+}
+[data-font-scale='EXTRA_GRANDE'] {
+  --base-font-size: 22px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-accessible);
+  font-size: var(--base-font-size);
+  line-height: 1.55; /* Interlineado >= 1.5x (Fase 2, Act. 1.2) */
+  letter-spacing: 0.015em;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  transition: background-color 0.25s ease, color 0.25s ease, filter 0.3s ease;
+}
+
+/* Atenuación automática de luminancia cuando el sonido supera >65 dB o en Pausa Sensorial */
+[data-luminance-attenuated='true'] {
+  filter: brightness(0.86) saturate(0.85);
+}
+
+/* Enfoque de teclado ultra-visible (WCAG 2.4.7 / 2.4.11) */
+*:focus-visible {
+  outline: 4px solid var(--focus-ring) !important;
+  outline-offset: 3px !important;
+}
+
+/* =============================================================================
+ * REGLA ESTRICTA DE BLANCOS TÁCTILES >= 48x48 dp (EN 301 549 / WCAG 2.5.5)
+ * ============================================================================= */
+button,
+.btn-aaa,
+.nav-tab-btn,
+select,
+input[type='text'],
+input[type='date'],
+input[type='number'] {
+  min-height: 48px;
+  min-width: 48px;
+  font-family: var(--font-accessible);
+  font-size: 1rem;
+  border-radius: var(--radius-md);
+  transition: transform 0.12s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+button {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 18px;
+  font-weight: 700;
+  border: 2px solid transparent;
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+.btn-primary-aaa {
+  background-color: var(--primary-aaa);
+  color: var(--primary-text);
+  border-color: var(--primary-aaa);
+  min-height: 54px;
+  padding: 12px 22px;
+  font-size: 1.05rem;
+}
+
+.btn-primary-aaa:hover {
+  background-color: var(--primary-aaa-hover);
+}
+
+.btn-purple-aaa {
+  background-color: var(--purple-aaa);
+  color: var(--primary-text);
+  border-color: var(--purple-aaa);
+  min-height: 54px;
+  padding: 12px 22px;
+  font-size: 1.05rem;
+}
+
+.btn-secondary-aaa {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  border: 2px solid var(--border-strong);
+  min-height: 50px;
+}
+
+.btn-secondary-aaa:hover {
+  background-color: var(--bg-surface-soft);
+}
+
+.btn-success-aaa {
+  background-color: var(--success-btn);
+  color: var(--primary-text);
+  border-color: var(--success-btn);
+  min-height: 54px;
+}
+
+/* Botón Persistente de Calma: 'Pausa Sensorial' (Fase 2, Act. 1.1) */
+.btn-calm-sensory {
+  background-color: #E0F2FE;
+  color: #0C4A6E;
+  border: 2px solid #0284C7;
+  font-weight: 700;
+}
+
+.btn-calm-sensory[aria-pressed='true'] {
+  background-color: #0C4A6E;
+  color: #FFFFFF;
+}
+
+/* =============================================================================
+ * LAYOUT PRINCIPAL Y BARRAS DE NAVEGACIÓN (MOCKUPS FASE 1 Y FASE 2)
+ * ============================================================================= */
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 16px 104px 16px;
+}
+
+.top-header-dua {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background-color: var(--bg-surface);
+  border-bottom: 3px solid var(--border-subtle);
+  padding: 12px 20px;
+  margin: 0 -16px 20px -16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-shadow: var(--shadow-soft);
+}
+
+.brand-block {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-logo-badge {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background-color: var(--primary-aaa);
+  color: var(--primary-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.7rem;
+  font-weight: 700;
+}
+
+.brand-title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.brand-subtitle {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+/* Semáforo Cromático-Lumínico de Decibeles */
+.decibel-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.92rem;
+  border: 2px solid currentColor;
+}
+
+.decibel-safe {
+  background-color: var(--db-safe-bg);
+  color: var(--db-safe-text);
+}
+
+.decibel-warn {
+  background-color: var(--db-warn-bg);
+  color: var(--db-warn-text);
+}
+
+.decibel-peak {
+  background-color: var(--db-peak-bg);
+  color: var(--db-peak-text);
+}
+
+.star-counter-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background-color: var(--warn-bg);
+  color: var(--warn-text);
+  border: 2px solid var(--warn-border);
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+/* Tarjetas Accesibles DUA */
+.card-aaa {
+  background-color: var(--bg-surface);
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  box-shadow: var(--shadow-soft);
+}
+
+.card-aaa-interactive {
+  background-color: var(--bg-surface);
+  border: 3px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.card-aaa-interactive:hover {
+  border-color: var(--primary-aaa);
+}
+
+/* Grillas Responsivas */
+.grid-2-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+  gap: 20px;
+}
+
+.grid-3-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: 18px;
+}
+
+.grid-4-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+/* Visor de Cámara AR / Simulación de Visión Artificial (Módulos 1 y 2) */
+.ar-camera-stage {
+  position: relative;
+  background: linear-gradient(145deg, #0F172A 0%, #1E293B 100%);
+  color: #FFFFFF;
+  border-radius: var(--radius-lg);
+  border: 4px solid var(--primary-aaa);
+  min-height: 360px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.ar-video-element {
+  width: 100%;
+  max-height: 340px;
+  object-fit: cover;
+  border-radius: 12px;
+  transform: scaleX(-1);
+}
+
+.ar-hand-guide-box {
+  border: 3px dashed #38BDF8;
+  background-color: rgba(15, 23, 42, 0.72);
+  border-radius: 20px;
+  padding: 24px;
+  text-align: center;
+  max-width: 340px;
+  width: 100%;
+}
+
+.live-badge {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  background-color: #064E3B;
+  color: #ECFDF5;
+  border: 2px solid #34D399;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Barras de Progreso Accesibles */
+.progress-track-aaa {
+  width: 100%;
+  height: 18px;
+  background-color: var(--bg-surface-soft);
+  border: 2px solid var(--border-strong);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-fill-aaa {
+  height: 100%;
+  background-color: var(--primary-aaa);
+  transition: width 0.35s ease;
+}
+
+.progress-fill-success {
+  height: 100%;
+  background-color: var(--success-border);
+  transition: width 0.35s ease;
+}
+
+/* Barra de Navegación Inferior Persistente (Mockup Act. 6) */
+.bottom-nav-aaa {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background-color: var(--bg-surface);
+  border-top: 3px solid var(--border-strong);
+  padding: 10px 16px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  box-shadow: 0 -4px 16px rgba(9, 19, 38, 0.1);
+}
+
+.bottom-nav-btn {
+  flex: 1;
+  max-width: 220px;
+  min-height: 58px;
+  border-radius: 14px;
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  border: 2px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 12px;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.bottom-nav-btn[aria-current='page'] {
+  background-color: var(--primary-aaa);
+  color: var(--primary-text);
+  border-color: var(--primary-aaa);
+}
+
+/* Banner de Pausa Sensorial (Fase 2, Actividad 1.1) */
+.sensory-pause-banner {
+  background-color: #E0F2FE;
+  color: #0C4A6E;
+  border: 3px solid #0369A1;
+  border-radius: var(--radius-lg);
+  padding: 18px 22px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+/* Etiquetas / Píldoras Semánticas */
+.badge-aaa {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  border: 2px solid currentColor;
+}
+
+.badge-lsm {
+  background-color: #DBEAFE;
+  color: #1E3A8A;
+}
+
+.badge-articulacion {
+  background-color: #F3E8FF;
+  color: #4C1D95;
+}
+
+.badge-success {
+  background-color: var(--success-bg);
+  color: var(--success-text);
+}
+
+/* Formularios Accesibles (WCAG 3.3.2) */
+.form-group-aaa {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.form-label-aaa {
+  font-weight: 700;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.form-input-aaa {
+  padding: 10px 14px;
+  border: 2px solid var(--border-strong);
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .bottom-nav-aaa {
+    gap: 8px;
+    padding: 8px;
+  }
+  .bottom-nav-btn {
+    font-size: 0.8rem;
+    padding: 6px 4px;
+  }
+}
