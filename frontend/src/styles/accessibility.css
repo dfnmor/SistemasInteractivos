@@ -88,18 +88,32 @@
   --focus-ring: #38BDF8;
 }
 
+/* Escala tipográfica: texto base >= 18px en móvil y 20px en escritorio */
+html {
+  --font-scale: 1;
+}
 [data-font-scale='NORMAL'] {
-  --base-font-size: 16.5px;
+  --font-scale: 1;
 }
 [data-font-scale='GRANDE'] {
-  --base-font-size: 18.5px;
+  --font-scale: 1.12;
 }
 [data-font-scale='EXTRA_GRANDE'] {
-  --base-font-size: 20.5px;
+  --font-scale: 1.25;
 }
 
 * {
   box-sizing: border-box;
+}
+
+html {
+  font-size: calc(18px * var(--font-scale));
+}
+
+@media (min-width: 1024px) {
+  html {
+    font-size: calc(20px * var(--font-scale));
+  }
 }
 
 html,
@@ -107,10 +121,13 @@ body {
   margin: 0;
   padding: 0;
   font-family: var(--font-accessible);
-  font-size: var(--base-font-size);
   line-height: 1.5;
   background-color: var(--bg-app);
   color: var(--text-primary);
+}
+
+body {
+  font-size: 1rem;
 }
 
 [data-luminance-attenuated='true'] {
@@ -539,5 +556,393 @@ button:active {
 @media (max-width: 600px) {
   .grid-2-cols {
     grid-template-columns: 1fr;
+  }
+}
+
+/* =============================================================================
+ * ELEMENTOS COMUNES DEL MARCO DE WIREFRAME (barra superior, retorno, íconos)
+ * ============================================================================= */
+.wireframe-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+}
+
+.wireframe-brand-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background-color: var(--primary-aaa);
+  color: var(--primary-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+.wireframe-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.icon-btn-48 {
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border-radius: 50%;
+  background-color: var(--bg-surface-soft);
+  color: var(--text-primary);
+  border: 2px solid var(--border-subtle);
+  font-size: 1.15rem;
+}
+
+.icon-btn-48[aria-pressed='true'] {
+  border-color: var(--success-border);
+  background-color: var(--success-bg);
+}
+
+.screen-back-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.btn-back-circle {
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border-radius: 50%;
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  border: 2px solid var(--border-strong);
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.sensory-pause-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background-color: var(--success-bg);
+  border: 2px solid var(--success-border);
+  color: var(--success-text);
+}
+
+.section-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.text-support {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.pill-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+/* Rejillas responsivas: 1 columna en móvil, 2 en escritorio */
+.responsive-2col {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+@media (min-width: 900px) {
+  .responsive-2col {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* =============================================================================
+ * DISEÑO RESPONSIVO DEL MARCO
+ * - Móvil (< 560px): pantalla completa, formato vertical
+ * - Tablet: marco móvil centrado
+ * - Escritorio: marco amplio (no diminuto) con texto base de 20px
+ * ============================================================================= */
+.app-shell {
+  padding: 16px 12px;
+}
+
+.bottom-nav-aaa {
+  position: sticky;
+  bottom: 0;
+  z-index: 30;
+}
+
+@media (max-width: 560px) {
+  .app-shell {
+    padding: 0;
+  }
+  .wireframe-device-frame {
+    max-width: 100%;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    min-height: 100vh;
+  }
+  .wireframe-screen-body {
+    padding: 14px;
+  }
+}
+
+@media (min-width: 561px) {
+  .wireframe-device-frame {
+    max-width: 540px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .wireframe-device-frame {
+    max-width: 640px;
+  }
+  .wireframe-screen-body {
+    padding: 24px 28px;
+  }
+  .ar-camera-stage {
+    min-height: 380px;
+  }
+  .ar-video-element {
+    height: 380px;
+  }
+}
+
+/* =============================================================================
+ * MÓDULO 1 (WIREFRAME 3) — ESQUINAS GUÍA + MEJORAS DIX09
+ * ============================================================================= */
+.camara-lsm-stage {
+  position: relative;
+  min-height: 340px;
+  padding: 0;
+}
+
+.camara-lsm-stage .ar-video-element {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+}
+
+@keyframes dix09-frame-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(52, 211, 153, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0);
+  }
+}
+
+@keyframes dix09-corner-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.guia-esquinas {
+  position: absolute;
+  left: 50%;
+  top: 54%;
+  transform: translate(-50%, -50%);
+  width: min(62%, 280px);
+  aspect-ratio: 1 / 1.05;
+  z-index: 4;
+  pointer-events: none;
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  transition: background-color 0.3s ease;
+}
+
+.guia-esquinas .esq {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border: 0 solid #ffffff;
+  transition: border-color 0.3s ease, width 0.3s ease, height 0.3s ease;
+}
+
+.guia-esquinas .esq-tl {
+  top: 0;
+  left: 0;
+  border-top-width: 5px;
+  border-left-width: 5px;
+  border-top-left-radius: 16px;
+}
+.guia-esquinas .esq-tr {
+  top: 0;
+  right: 0;
+  border-top-width: 5px;
+  border-right-width: 5px;
+  border-top-right-radius: 16px;
+}
+.guia-esquinas .esq-bl {
+  bottom: 0;
+  left: 0;
+  border-bottom-width: 5px;
+  border-left-width: 5px;
+  border-bottom-left-radius: 16px;
+}
+.guia-esquinas .esq-br {
+  bottom: 0;
+  right: 0;
+  border-bottom-width: 5px;
+  border-right-width: 5px;
+  border-bottom-right-radius: 16px;
+}
+
+.guia-esquinas.esperando .esq {
+  animation: dix09-corner-breathe 2.4s infinite ease-in-out;
+}
+
+.guia-esquinas.detectado {
+  background-color: rgba(6, 78, 59, 0.22);
+  animation: dix09-frame-pulse 1.8s infinite ease-in-out;
+}
+
+.guia-esquinas.detectado .esq {
+  border-color: #34d399;
+  width: 58px;
+  height: 58px;
+}
+
+.guia-pill {
+  background-color: #0f172a;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  padding: 6px 16px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
+.guia-esquinas.detectado .guia-pill {
+  background-color: #064e3b;
+  border-color: #34d399;
+}
+
+/* Indicador de preparación (DIX09 a): íconos, sin sonido, sin números */
+.prep-overlay,
+.referencia-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background-color: rgba(15, 23, 42, 0.94);
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 18px;
+  text-align: center;
+}
+
+.prep-pasos {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.prep-paso {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 3px solid #475569;
+  background-color: #1e293b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  opacity: 0.5;
+  transition: all 0.4s ease;
+}
+
+.prep-paso.activo {
+  opacity: 1;
+  border-color: #facc15;
+  transform: scale(1.12);
+  background-color: #334155;
+}
+
+.prep-paso.hecho {
+  opacity: 1;
+  border-color: #34d399;
+}
+
+/* Seña de referencia (normal / cámara lenta) */
+@keyframes sena-referencia-mov {
+  0% {
+    transform: translateX(-18px) rotate(-12deg);
+  }
+  50% {
+    transform: translateX(18px) rotate(12deg);
+  }
+  100% {
+    transform: translateX(-18px) rotate(-12deg);
+  }
+}
+
+.dix09-reference-playing-normal,
+.dix09-reference-playing-slow {
+  display: inline-block;
+  animation-name: sena-referencia-mov;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+}
+
+.dix09-reference-playing-normal {
+  animation-duration: 1.4s;
+}
+
+.dix09-reference-playing-slow {
+  animation-duration: 2.8s;
+}
+
+.demo-panel {
+  border: 3px dashed var(--warn-border);
+  background-color: var(--warn-bg);
+  color: var(--warn-text);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guia-esquinas.detectado,
+  .guia-esquinas.esperando .esq,
+  .dix09-reference-playing-normal,
+  .dix09-reference-playing-slow,
+  .dix09-contour-detected {
+    animation: none !important;
   }
 }

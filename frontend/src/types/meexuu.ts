@@ -6,6 +6,7 @@ export type ResultadoIntento = 'CORRECTO' | 'REINTENTO';
 
 export type VistaActiva =
   | 'INICIO_PERFIL'
+  | 'MENU_PRINCIPAL'
   | 'CATALOGO_CUENTOS'
   | 'PRACTICA_V1'
   | 'PRACTICA_V2'

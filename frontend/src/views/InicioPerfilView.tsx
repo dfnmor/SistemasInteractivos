@@ -185,7 +185,10 @@ export const InicioPerfilView: React.FC<InicioPerfilViewProps> = ({
                 <button
                   key={perfil.id_perfil}
                   type="button"
-                  onClick={() => onSelectPerfil(perfil)}
+                  onClick={() => {
+                    onSelectPerfil(perfil);
+                    onIrAlMenu();
+                  }}
                   style={{
                     minHeight: '52px',
                     width: '100%',
