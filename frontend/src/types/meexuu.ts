@@ -7,7 +7,8 @@ export type ResultadoIntento = 'CORRECTO' | 'REINTENTO';
 export type VistaActiva =
   | 'INICIO_PERFIL'
   | 'CATALOGO_CUENTOS'
-  | 'MODULO_1_LSM'
+  | 'PRACTICA_V1'
+  | 'PRACTICA_V2'
   | 'MODULO_2_ARTICULACION'
   | 'PANEL_TUTOR';
 
@@ -15,7 +16,7 @@ export interface ConfiguracionAccesibilidad {
   tamanoTexto: 'NORMAL' | 'GRANDE' | 'EXTRA_GRANDE';
   contraste: 'AAA_ESTANDAR' | 'AAA_ALTO_CONTRASTE';
   velocidadAnimacion: 0.5 | 1.0;
-  nivelDecibeles: number; // <50 dB Zona Segura, 50-65 dB Advertencia, >65 dB Pico
+  nivelDecibeles: number;
   pausaSensorialActiva: boolean;
   modoPreExploracionSilenciosa: boolean;
 }
@@ -78,6 +79,16 @@ export interface Recompensa {
   desbloqueada?: boolean;
 }
 
+export interface CanjeRecompensaItem {
+  id_canje: number;
+  id_perfil: number;
+  id_recompensa: number;
+  fecha_canje: string;
+  nombre_recompensa: string;
+  icono_url: string;
+  costo_puntos: number;
+}
+
 export interface EstadisticasPerfilData {
   perfil: PerfilNino;
   resumen: {
@@ -98,6 +109,8 @@ export interface EstadisticasPerfilData {
     fecha_completado: string | null;
     titulo_cuento?: string;
     tipo_cuento?: TipoCuento;
+    nivel_lectura?: NivelLectura;
   }>;
   historial_intentos: MetricaIntento[];
+  recompensas_canjeadas: CanjeRecompensaItem[];
 }

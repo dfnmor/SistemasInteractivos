@@ -12,19 +12,21 @@ interface CatalogoCuentosViewProps {
   perfilActivo: PerfilNino;
   cuentos: Cuento[];
   recompensas: Recompensa[];
-  onNavigate: (vista: VistaActiva) => void;
+  onNavigate: (vista: VistaActiva, path?: string) => void;
   onCompletarCuento: (id_cuento: number) => Promise<void>;
-  onCanjearRecompensa: (id_recompensa: number) => Promise<void>;
-  onPracticarEjercicio: (tipo: TipoCuento, palabra: string, idEjercicio: number) => void;
+  onCanjearRecompensa: (id_recompensa: number) => Promise<{ ok: boolean; mensaje: string }>;
+  onPracticarEjercicio: (
+    tipo: TipoCuento,
+    palabra: string,
+    idEjercicio: number,
+    idCuento?: number
+  ) => void;
 }
 
-const ILUSTRACIONES_CUENTO: Record<number, { emoji: string; fondo: string }> = {
-  1: { emoji: '🐰🌙', fondo: '#DBEAFE' },
-  2: { emoji: '🐱🏠', fondo: '#FEF3C7' },
-  3: { emoji: '🏫📚', fondo: '#DCFCE7' },
-  4: { emoji: '👩🏽‍🍼🎵', fondo: '#F3E8FF' },
-  5: { emoji: '☀️🏡', fondo: '#FFEDD5' },
-  6: { emoji: '🚂✨', fondo: '#E0E7FF' },
+const FONDOS_NIVEL: Record<NivelLectura, string> = {
+  NO_LECTOR: '#DBEAFE',
+  LECTURA_INICIAL: '#FEF3C7',
+  LECTOR_AVANZADO: '#DCFCE7',
 };
 
 export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
@@ -43,7 +45,10 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
   const [velocidadAvatar, setVelocidadAvatar] = useState<0.5 | 1.0>(1.0);
   const [anguloRotacion3D, setAnguloRotacion3D] = useState<number>(0);
   const [pausado, setPausado] = useState<boolean>(false);
-  const [mensajeCanje, setMensajeCanje] = useState<string | null>(null);
+  const [estadoCanje, setEstadoCanje] = useState<{
+    ok: boolean;
+    mensaje: string;
+  } | null>(null);
 
   const nombreCorto = perfilActivo.nombre_apodo.split('(')[0].trim();
   const esNoLector = perfilActivo.nivel_lectura === 'NO_LECTOR';
@@ -64,7 +69,7 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
   return (
     <section aria-labelledby="titulo-menu-principal">
       {/* =====================================================================
-          SECCIÓN 1: BIENVENIDA Y MISIÓN DE HOY (MOCKUP 1 - FASE 2, ACT. 6)
+          SECCIÓN 1: BIENVENIDA Y PERFIL ACTIVO CONECTADO A POSTGRESQL
          ===================================================================== */}
       <div
         className="card-aaa"
@@ -80,7 +85,6 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: '16px',
-            marginBottom: '18px',
           }}
         >
           <div>
@@ -92,105 +96,39 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
                 textTransform: 'uppercase',
               }}
             >
-              ¡BIENVENIDO DE VUELTA!
+              ¡BIENVENIDO DE VUELTA! (PERFIL ACTIVO EN BD #{perfilActivo.id_perfil})
             </span>
             <h1 id="titulo-menu-principal" style={{ margin: '4px 0', fontSize: '2rem' }}>
               ¡Hola, {nombreCorto}! 👋
             </h1>
             <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
-              Modo adaptado: <strong>Sordera {perfilActivo.tipo_sordera}</strong> •{' '}
-              <strong>{perfilActivo.nivel_lectura.replace('_', ' ')}</strong>
+              Condición: <strong>Sordera {perfilActivo.tipo_sordera}</strong> • Nivel de
+              Lectura: <strong>{perfilActivo.nivel_lectura.replace('_', ' ')}</strong>
             </p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div className="star-counter-badge" style={{ fontSize: '1.25rem', padding: '10px 20px' }}>
-              ⭐ {perfilActivo.puntos_acumulados} Estrellas
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <div
+              className="star-counter-badge"
+              style={{ fontSize: '1.25rem', padding: '10px 20px' }}
+            >
+              ⭐ {perfilActivo.puntos_acumulados} Puntos en BD
             </div>
-          </div>
-        </div>
-
-        {/* Misión de Hoy (2 de 3 logradas) exactamente como en el Mockup 1 */}
-        <div
-          style={{
-            backgroundColor: 'var(--bg-app)',
-            borderRadius: '16px',
-            padding: '16px',
-            border: '2px solid var(--border-subtle)',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '12px',
-            }}
-          >
-            <strong style={{ fontSize: '1.08rem' }}>🎯 Misión de Hoy</strong>
-            <span className="badge-aaa badge-success">2 de 3 logradas</span>
-          </div>
-          <div className="grid-3-cols">
             <button
               type="button"
               className="btn-secondary-aaa"
-              style={{
-                justifyContent: 'flex-start',
-                backgroundColor: 'var(--success-bg)',
-                borderColor: 'var(--success-border)',
-                color: 'var(--success-text)',
-              }}
-              onClick={() => onPracticarEjercicio('LSM', 'HOLA (Saludo)', 1)}
+              onClick={() => onNavigate('INICIO_PERFIL', '/')}
             >
-              <span style={{ fontSize: '1.5rem' }}>✅</span>
-              <div style={{ textAlign: 'left' }}>
-                <div>Seña &quot;Hola&quot;</div>
-                <small>Completada (+20 ⭐)</small>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              className="btn-secondary-aaa"
-              style={{
-                justifyContent: 'flex-start',
-                backgroundColor: 'var(--success-bg)',
-                borderColor: 'var(--success-border)',
-                color: 'var(--success-text)',
-              }}
-              onClick={() => onPracticarEjercicio('ARTICULACION', '/m/ - /a/ • MA-MÁ', 10)}
-            >
-              <span style={{ fontSize: '1.5rem' }}>✅</span>
-              <div style={{ textAlign: 'left' }}>
-                <div>Boca &quot;MA-MÁ&quot;</div>
-                <small>Completada (+25 ⭐)</small>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              className="btn-secondary-aaa"
-              style={{ justifyContent: 'flex-start' }}
-              onClick={() => {
-                const cConejo = cuentos.find((c) => c.id_cuento === 1) || cuentos[0];
-                if (cConejo) handleAbrirCuento(cConejo);
-              }}
-            >
-              <span style={{ fontSize: '1.5rem' }}>⭐</span>
-              <div style={{ textAlign: 'left' }}>
-                <div>Cuento &quot;Conejo&quot;</div>
-                <small>¡Toca para abrir! (+30 ⭐)</small>
-              </div>
+              🔄 Cambiar Perfil
             </button>
           </div>
         </div>
       </div>
 
       {/* =====================================================================
-          SECCIÓN 2: LOS DOS MÓDULOS PRINCIPALES (RF-03 / MOCKUP 1)
+          SECCIÓN 2: ACCESO A LOS MÓDULOS PRINCIPALES (RF-03)
          ===================================================================== */}
       <div className="grid-2-cols" style={{ marginBottom: '26px' }}>
-        {/* Módulo 1: Lengua de Señas Mexicana (LSM) */}
         <div
           className="card-aaa"
           style={{
@@ -214,25 +152,26 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
                 🤟🏽
               </span>
             </div>
-            <h2 style={{ margin: '6px 0' }}>Aprende LSM (Lengua de Señas)</h2>
+            <h2 style={{ margin: '6px 0' }}>Módulo 1: Práctica de Señas (LSM)</h2>
             {!esNoLector && (
               <p style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>
-                Mira los cuentos animados con el avatar 3D y practica señas con tus manos
-                frente a la cámara con Realidad Aumentada.
+                Practica las señas de los cuentos frente a la cámara web con contorno guía
+                superpuesto y guarda cada intento en PostgreSQL.
               </p>
             )}
           </div>
-          <button
-            type="button"
-            className="btn-primary-aaa"
-            style={{ width: '100%', marginTop: '12px' }}
-            onClick={() => onNavigate('MODULO_1_LSM')}
-          >
-            ▶ Jugar Sesión de Señas (Cámara AR)
-          </button>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '12px' }}>
+            <button
+              type="button"
+              className="btn-primary-aaa"
+              style={{ flex: 1 }}
+              onClick={() => onNavigate('PRACTICA_V2', '/practica-v2')}
+            >
+              ▶ Ir a Práctica de Seña
+            </button>
+          </div>
         </div>
 
-        {/* Módulo 2: Articulación Oral */}
         <div
           className="card-aaa"
           style={{
@@ -258,11 +197,11 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
                 🗣️
               </span>
             </div>
-            <h2 style={{ margin: '6px 0' }}>Habla y Pronuncia</h2>
+            <h2 style={{ margin: '6px 0' }}>Módulo 2: Habla y Articulación Oral</h2>
             {!esNoLector && (
               <p style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>
-                Mira cómo se mueve la boca del terapeuta en cámara lenta frente al espejo AR
-                y repite los fonemas paso a paso.
+                Observa el movimiento labial del terapeuta en cámara lenta frente al espejo AR
+                y repite las sílabas.
               </p>
             )}
           </div>
@@ -270,7 +209,7 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
             type="button"
             className="btn-purple-aaa"
             style={{ width: '100%', marginTop: '12px' }}
-            onClick={() => onNavigate('MODULO_2_ARTICULACION')}
+            onClick={() => onNavigate('MODULO_2_ARTICULACION', '/articulacion')}
           >
             🎙️ Entrenar Boca (Espejo AR)
           </button>
@@ -278,8 +217,7 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
       </div>
 
       {/* =====================================================================
-          MODAL / VISOR INTERACTIVO DE NARRATIVA DE CUENTO (CU-04 / RF-05 / RF-14)
-          Con Avatar 3D Gesticulador MOD-3D-01 (Velocidad 0.5x/1.0x y Rotación 360°)
+          VISOR INTERACTIVO DEL CUENTO SELECCIONADO (CU-04 / RF-05 / RF-14)
          ===================================================================== */}
       {cuentoAbierto && (
         <div
@@ -304,7 +242,8 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
           >
             <div>
               <span className="badge-aaa badge-lsm">
-                📖 Narrativa Interactiva DUA (RF-05 / RF-14 • Doble Canal: LSM + Subtítulos)
+                📖 Cuento #{cuentoAbierto.id_cuento} • Nivel:{' '}
+                {cuentoAbierto.nivel_lectura.replace('_', ' ')}
               </span>
               <h2 style={{ margin: '6px 0 0 0' }}>{cuentoAbierto.titulo}</h2>
             </div>
@@ -313,12 +252,11 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
               className="btn-secondary-aaa"
               onClick={() => setCuentoAbierto(null)}
             >
-              ⬅ Regresar al Catálogo (CU-03)
+              ⬅ Cerrar Cuento y Volver al Catálogo
             </button>
           </div>
 
           <div className="grid-2-cols">
-            {/* Escenario del Avatar Gesticulador MOD-3D-01 */}
             <div
               className="card-aaa"
               style={{
@@ -336,7 +274,7 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
                 }}
               >
                 <span className="badge-aaa badge-lsm">
-                  🤖 MOD-3D-01: Avatar Gesticulador LSM
+                  🤖 Avatar Gesticulador MOD-3D-01
                 </span>
                 <span className="badge-aaa badge-articulacion">
                   Ángulo: {anguloRotacion3D}° | Vel: {velocidadAvatar}x
@@ -347,16 +285,15 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
                 style={{
                   padding: '28px 16px',
                   borderRadius: '18px',
-                  backgroundColor:
-                    ILUSTRACIONES_CUENTO[cuentoAbierto.id_cuento]?.fondo || '#DBEAFE',
+                  backgroundColor: FONDOS_NIVEL[cuentoAbierto.nivel_lectura] || '#DBEAFE',
                   color: '#091326',
                   marginBottom: '14px',
                   transform: `rotateY(${anguloRotacion3D}deg)`,
                   transition: 'transform 0.4s ease',
                 }}
               >
-                <div style={{ fontSize: '4.4rem', lineHeight: 1.1 }}>
-                  {ILUSTRACIONES_CUENTO[cuentoAbierto.id_cuento]?.emoji || '🐰🌙'}
+                <div style={{ fontSize: '4.2rem', lineHeight: 1.1 }}>
+                  {cuentoAbierto.imagen_portada || '🐰🌙'}
                 </div>
                 <div
                   style={{
@@ -370,16 +307,21 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
                     border: '2px solid #091326',
                   }}
                 >
-                  Seña / Palabra Clave #{escenaActual + 1}:{' '}
+                  Ejercicio #{escenaActual + 1} del Cuento:{' '}
                   <span style={{ color: '#004488' }}>
-                    {cuentoAbierto.ejercicios?.[escenaActual]?.palabra_o_sena ||
-                      'HOLA (Saludo)'}
+                    {cuentoAbierto.ejercicios?.[escenaActual]?.palabra_o_sena || 'HOLA'}
                   </span>
                 </div>
               </div>
 
-              {/* Controles de Accesibilidad del Modelo 3D (Fase 2, Act. 2 y RF-14) */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '10px',
+                  justifyContent: 'center',
+                }}
+              >
                 <button
                   type="button"
                   className="btn-secondary-aaa"
@@ -394,19 +336,18 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
                     setVelocidadAvatar((v) => (v === 1.0 ? 0.5 : 1.0))
                   }
                 >
-                  🐢 Velocidad: {velocidadAvatar === 1.0 ? 'Normal (1.0x)' : 'Cámara Lenta (0.5x)'}
+                  🐢 Velocidad: {velocidadAvatar}x
                 </button>
                 <button
                   type="button"
                   className="btn-secondary-aaa"
                   onClick={() => setAnguloRotacion3D((ang) => (ang + 45) % 360)}
                 >
-                  🔄 Rotar Avatar 360° ({anguloRotacion3D}°)
+                  🔄 Rotar 360°
                 </button>
               </div>
             </div>
 
-            {/* Subtítulos Sincronizados y Nodos de Interacción con Cámara */}
             <div
               className="card-aaa"
               style={{
@@ -417,15 +358,24 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
             >
               <div>
                 <h3 style={{ marginTop: 0 }}>
-                  💬 Subtítulos Sincronizados y Nodos de Práctica
+                  💬 Narrativa y Ejercicios del Cuento (`TABLA_EJERCICIO_CUENTO`)
                 </h3>
-                <p style={{ fontSize: '1.12rem', fontWeight: 600 }}>
+                <p style={{ fontSize: '1.1rem', fontWeight: 600 }}>
                   {cuentoAbierto.descripcion}
                 </p>
 
                 <div style={{ margin: '16px 0' }}>
-                  <strong>Palabras / Señas de este cuento ({cuentoAbierto.ejercicios?.length || 0}):</strong>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '10px' }}>
+                  <strong>
+                    Selecciona un ejercicio de este cuento para practicar frente a la cámara:
+                  </strong>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '10px',
+                      marginTop: '10px',
+                    }}
+                  >
                     {(cuentoAbierto.ejercicios || []).map((ej, idx) => (
                       <button
                         key={ej.id_ejercicio}
@@ -435,28 +385,39 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
                         }
                         onClick={() => setEscenaActual(idx)}
                       >
-                        {idx + 1}. {ej.palabra_o_sena}
+                        {idx + 1}. {ej.palabra_o_sena} (ID #{ej.id_ejercicio})
                       </button>
                     ))}
                   </div>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '16px' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '12px',
+                  marginTop: '16px',
+                }}
+              >
                 <button
                   type="button"
                   className="btn-primary-aaa"
                   onClick={() => {
                     const ej = cuentoAbierto.ejercicios?.[escenaActual];
-                    onPracticarEjercicio(
-                      cuentoAbierto.tipo,
-                      ej?.palabra_o_sena || 'HOLA (Saludo)',
-                      ej?.id_ejercicio || 1
-                    );
+                    if (ej) {
+                      onPracticarEjercicio(
+                        cuentoAbierto.tipo,
+                        ej.palabra_o_sena,
+                        ej.id_ejercicio,
+                        cuentoAbierto.id_cuento
+                      );
+                    }
                   }}
                 >
-                  📷 Practicar en Cámara AR: &quot;
-                  {cuentoAbierto.ejercicios?.[escenaActual]?.palabra_o_sena || 'HOLA'}&quot;
+                  📷 Practicar Seña &quot;
+                  {cuentoAbierto.ejercicios?.[escenaActual]?.palabra_o_sena || 'HOLA'}&quot; en
+                  Módulo 1
                 </button>
 
                 <button
@@ -467,7 +428,7 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
                     setCuentoAbierto(null);
                   }}
                 >
-                  🏆 Finalizar Cuento (+30 ⭐)
+                  🏆 Completar Cuento en BD (+30 ⭐)
                 </button>
               </div>
             </div>
@@ -476,7 +437,7 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
       )}
 
       {/* =====================================================================
-          SECCIÓN 3: BIBLIOTECA DE CUENTOS LSM Y ARTICULACIÓN (MOCKUP 2 - ACT. 6)
+          SECCIÓN 3: CATÁLOGO DE CUENTOS DESDE POSTGRESQL (3 POR NIVEL = 9 CUENTOS)
          ===================================================================== */}
       <div className="card-aaa" style={{ marginBottom: '26px' }}>
         <div
@@ -490,13 +451,15 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
           }}
         >
           <div>
-            <h2 style={{ margin: 0 }}>📚 Biblioteca de Cuentos Interactivos (RF-04 / RF-08)</h2>
+            <h2 style={{ margin: 0 }}>
+              📚 Catálogo de Cuentos en PostgreSQL ({cuentosFiltrados.length} cuentos)
+            </h2>
             <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)' }}>
-              Cuentos ordenados progresivamente por nivel de lectura y número de palabras clave.
+              3 cuentos por cada nivel (`NO_LECTOR`, `LECTURA_INICIAL`, `LECTOR_AVANZADO`) con
+              sus ejercicios cargados desde `TABLA_CUENTO` y `TABLA_EJERCICIO_CUENTO`.
             </p>
           </div>
 
-          {/* Filtros accesibles */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             {(['TODOS', 'LSM', 'ARTICULACION'] as const).map((t) => (
               <button
@@ -506,7 +469,7 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
                 onClick={() => setFiltroTipo(t)}
               >
                 {t === 'TODOS'
-                  ? '📋 Todos los Módulos'
+                  ? '📋 Todos'
                   : t === 'LSM'
                   ? '🤟 Módulo 1: LSM'
                   : '👄 Módulo 2: Articulación'}
@@ -515,7 +478,6 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
           </div>
         </div>
 
-        {/* Filtro por Nivel de Lectura DUA */}
         <div
           style={{
             display: 'flex',
@@ -534,27 +496,22 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
                 style={{ fontSize: '0.92rem' }}
               >
                 {niv === 'TODOS'
-                  ? '🌈 Todos los Niveles'
+                  ? '🌈 Todos los Niveles (9)'
                   : niv === 'NO_LECTOR'
-                  ? '🟢 Nivel 1: No Lector (1-3 palabras)'
+                  ? '🟢 Nivel 1: NO_LECTOR (3)'
                   : niv === 'LECTURA_INICIAL'
-                  ? '🔵 Nivel 2: Lectura Inicial (3-5 palabras)'
-                  : '🟣 Nivel 3: Lector Avanzado (7-8 palabras)'}
+                  ? '🔵 Nivel 2: LECTURA_INICIAL (3)'
+                  : '🟣 Nivel 3: LECTOR_AVANZADO (3)'}
               </button>
             )
           )}
         </div>
 
-        {/* Tarjetas del Catálogo de Cuentos */}
         <div className="grid-3-cols">
           {cuentosFiltrados.map((cuento) => {
-            const ilustracion = ILUSTRACIONES_CUENTO[cuento.id_cuento] || {
-              emoji: '📖✨',
-              fondo: '#DBEAFE',
-            };
             const completado = cuento.progreso_usuario?.estado === 'COMPLETADO';
             const enProgreso = cuento.progreso_usuario?.estado === 'EN_PROGRESO';
-            const porcentajeAvance = completado ? 100 : enProgreso ? 60 : 0;
+            const porcentajeAvance = completado ? 100 : enProgreso ? 55 : 0;
 
             return (
               <article
@@ -567,7 +524,6 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
                 }}
               >
                 <div>
-                  {/* Cabecera de Nivel y Duración (Mockup 2: Nivel 1 | 5 min | ⭐⭐⭐) */}
                   <div
                     style={{
                       display: 'flex',
@@ -583,31 +539,29 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
                         cuento.tipo === 'LSM' ? 'badge-lsm' : 'badge-articulacion'
                       }`}
                     >
-                      {cuento.tipo === 'LSM' ? '🤟 LSM' : '👄 Articulación'} • Nivel{' '}
-                      {cuento.orden_dificultad}
+                      {cuento.tipo === 'LSM' ? '🤟 LSM' : '👄 Articulación'} •{' '}
+                      {cuento.nivel_lectura}
                     </span>
-                    <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>
-                      ⏱️ 5 min • {cuento.num_palabras} palabras
+                    <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>
+                      {cuento.ejercicios?.length || 3} ejercicios
                     </span>
                   </div>
 
-                  {/* Portada Ilustrada de Alto Contraste */}
                   <div
                     style={{
-                      backgroundColor: ilustracion.fondo,
+                      backgroundColor: FONDOS_NIVEL[cuento.nivel_lectura] || '#DBEAFE',
                       borderRadius: '16px',
-                      padding: '24px 16px',
+                      padding: '22px 16px',
                       textAlign: 'center',
-                      fontSize: '3.6rem',
+                      fontSize: '3.4rem',
                       marginBottom: '14px',
                       border: '2px solid #091326',
                     }}
                     aria-hidden="true"
                   >
-                    {ilustracion.emoji}
+                    {cuento.imagen_portada || '📖✨'}
                   </div>
 
-                  {/* Etiquetas de señas / palabras clave */}
                   <div
                     style={{
                       fontSize: '0.9rem',
@@ -616,13 +570,13 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
                       marginBottom: '6px',
                     }}
                   >
-                    🎯 Señas/Palabras:{' '}
+                    🎯 Ejercicios:{' '}
                     {(cuento.ejercicios || [])
                       .map((e) => e.palabra_o_sena)
-                      .join(', ') || 'Hola, Luna, Conejo'}
+                      .join(', ')}
                   </div>
 
-                  <h3 style={{ margin: '6px 0', fontSize: '1.25rem' }}>{cuento.titulo}</h3>
+                  <h3 style={{ margin: '6px 0', fontSize: '1.22rem' }}>{cuento.titulo}</h3>
 
                   {!esNoLector && (
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
@@ -632,7 +586,6 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
                 </div>
 
                 <div style={{ marginTop: '14px' }}>
-                  {/* Barra de Progreso (Mockup 2: 60% completado) */}
                   <div
                     style={{
                       display: 'flex',
@@ -644,12 +597,12 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
                   >
                     <span>
                       {completado
-                        ? '✅ Completado'
+                        ? '✅ Completado en BD'
                         : enProgreso
-                        ? '⏳ En progreso'
-                        : '✨ Listo para explorar'}
+                        ? `⏳ En progreso (${cuento.progreso_usuario?.puntos_obtenidos || 0} pts)`
+                        : '✨ Nuevo'}
                     </span>
-                    <span>{porcentajeAvance}% completado</span>
+                    <span>{porcentajeAvance}%</span>
                   </div>
                   <div className="progress-track-aaa" style={{ marginBottom: '14px' }}>
                     <div
@@ -666,7 +619,7 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
                     style={{ width: '100%' }}
                     onClick={() => handleAbrirCuento(cuento)}
                   >
-                    ▶ Abrir Cuento
+                    ▶ Abrir Cuento #{cuento.id_cuento}
                   </button>
                 </div>
               </article>
@@ -676,9 +629,9 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
       </div>
 
       {/* =====================================================================
-          SECCIÓN 4: MIS TROFEOS GANADOS Y CANJE DE RECOMPENSAS (RF-11 / CU-09)
+          SECCIÓN 4: PUNTOS Y CANJE DE RECOMPENSAS EN POSTGRESQL (CU-09)
          ===================================================================== */}
-      <div className="card-aaa" style={{ marginBottom: '26px' }}>
+      <div className="card-aaa">
         <div
           style={{
             display: 'flex',
@@ -690,27 +643,34 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
           }}
         >
           <div>
-            <h2 style={{ margin: 0 }}>🏆 Mis Trofeos Ganados y Recompensas (CU-09 / RF-11)</h2>
+            <h2 style={{ margin: 0 }}>
+              🏆 Canje de Recompensas (`TABLA_RECOMPENSA` / `TABLA_CANJE_RECOMPENSA`)
+            </h2>
             <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)' }}>
-              Canjea tus estrellas acumuladas ({perfilActivo.puntos_acumulados} ⭐) por insignias y
-              accesorios para tu avatar:
+              Puntos disponibles de <strong>{nombreCorto}</strong>:{' '}
+              <strong>⭐ {perfilActivo.puntos_acumulados} puntos</strong>. Al canjear una
+              recompensa se descuenta el saldo en `TABLA_PERFIL` y se registra en
+              `TABLA_CANJE_RECOMPENSA`.
             </p>
           </div>
         </div>
 
-        {mensajeCanje && (
+        {estadoCanje && (
           <div
             className="card-aaa"
             style={{
               marginBottom: '16px',
-              backgroundColor: 'var(--success-bg)',
-              borderColor: 'var(--success-border)',
-              color: 'var(--success-text)',
+              backgroundColor: estadoCanje.ok ? 'var(--success-bg)' : 'var(--warn-bg)',
+              borderColor: estadoCanje.ok
+                ? 'var(--success-border)'
+                : 'var(--warn-border)',
+              color: estadoCanje.ok ? 'var(--success-text)' : 'var(--warn-text)',
               fontWeight: 700,
             }}
             role="status"
           >
-            {mensajeCanje}
+            {estadoCanje.ok ? '✅ ' : '⚠️ '}
+            {estadoCanje.mensaje}
           </div>
         )}
 
@@ -734,11 +694,11 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
               </div>
               <h3 style={{ margin: '4px 0' }}>{rec.nombre}</h3>
               <p style={{ margin: '4px 0 12px 0', fontWeight: 700 }}>
-                Costo: ⭐ {rec.costo_puntos} estrellas
+                Costo: ⭐ {rec.costo_puntos} puntos
               </p>
               {rec.desbloqueada ? (
                 <span className="badge-aaa badge-success" style={{ padding: '10px 16px' }}>
-                  ✓ Trofeo Desbloqueado
+                  ✓ Canjeada y Registrada en BD
                 </span>
               ) : (
                 <button
@@ -746,10 +706,8 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
                   className="btn-primary-aaa"
                   style={{ width: '100%' }}
                   onClick={async () => {
-                    await onCanjearRecompensa(rec.id_recompensa);
-                    setMensajeCanje(
-                      `✨ Solicitud de canje procesada para "${rec.nombre}".`
-                    );
+                    const resultado = await onCanjearRecompensa(rec.id_recompensa);
+                    setEstadoCanje(resultado);
                   }}
                 >
                   🎁 Canjear por {rec.costo_puntos} ⭐
@@ -758,44 +716,6 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
             </div>
           ))}
         </div>
-      </div>
-
-      {/* =====================================================================
-          SECCIÓN 5: ZONA PROTEGIDA - MODO PADRES Y TERAPEUTAS (MOCKUP 1)
-         ===================================================================== */}
-      <div
-        className="card-aaa"
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '16px',
-          border: '3px solid var(--border-strong)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <span style={{ fontSize: '2.2rem' }} aria-hidden="true">
-            🛡️
-          </span>
-          <div>
-            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-              ZONA PROTEGIDA (CU-07 / CU-08)
-            </div>
-            <h3 style={{ margin: 0 }}>Modo Padres y Terapeutas de Lenguaje</h3>
-            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.94rem' }}>
-              Consulta gráficas semanales, precisión de visión artificial y ajusta el perfil
-              adaptativo del niño.
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          className="btn-secondary-aaa"
-          onClick={() => onNavigate('PANEL_TUTOR')}
-        >
-          📊 Entrar al Panel de Seguimiento
-        </button>
       </div>
     </section>
   );

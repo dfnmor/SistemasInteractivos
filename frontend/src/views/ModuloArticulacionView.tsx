@@ -538,3 +538,4 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
     </section>
   );
 };
+

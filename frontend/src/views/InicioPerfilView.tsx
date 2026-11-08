@@ -464,3 +464,4 @@ export const InicioPerfilView: React.FC<InicioPerfilViewProps> = ({
     </section>
   );
 };
+

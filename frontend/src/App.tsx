@@ -21,22 +21,33 @@ import {
 } from './services/api';
 import { InicioPerfilView } from './views/InicioPerfilView';
 import { CatalogoCuentosView } from './views/CatalogoCuentosView';
+import { PracticaSenaV1View } from './views/PracticaSenaV1View';
 import { ModuloLSMView } from './views/ModuloLSMView';
 import { ModuloArticulacionView } from './views/ModuloArticulacionView';
 import { PanelTutorView } from './views/PanelTutorView';
 
+function resolveVistaFromPathname(pathname: string): VistaActiva {
+  if (pathname === '/practica-v1') return 'PRACTICA_V1';
+  if (pathname === '/practica-v2') return 'PRACTICA_V2';
+  if (pathname === '/cuentos') return 'CATALOGO_CUENTOS';
+  if (pathname === '/articulacion') return 'MODULO_2_ARTICULACION';
+  if (pathname === '/tutor') return 'PANEL_TUTOR';
+  return 'INICIO_PERFIL';
+}
+
 export const App: React.FC = () => {
-  const [vistaActiva, setVistaActiva] = useState<VistaActiva>('CATALOGO_CUENTOS');
+  const [vistaActiva, setVistaActiva] = useState<VistaActiva>(() =>
+    resolveVistaFromPathname(window.location.pathname)
+  );
   const [perfiles, setPerfiles] = useState<PerfilNino[]>([]);
   const [perfilActivo, setPerfilActivo] = useState<PerfilNino>({
     id_perfil: 1,
     id_tutor: 1,
-    nombre_apodo: 'Mateo (Niño A: Lector Inicial)',
+    nombre_apodo: 'Mateo (Sordera Parcial • Lector Inicial)',
     fecha_nacimiento: '2020-04-15',
     tipo_sordera: 'PARCIAL',
     nivel_lectura: 'LECTURA_INICIAL',
-    puntos_acumulados: 120,
-    nombre_tutor: 'Laura Gómez (Mamá de Mateo)',
+    puntos_acumulados: 90,
   });
   const [cuentos, setCuentos] = useState<Cuento[]>([]);
   const [recompensas, setRecompensas] = useState<Recompensa[]>([]);
@@ -49,7 +60,8 @@ export const App: React.FC = () => {
   const [ejercicioSeleccionado, setEjercicioSeleccionado] = useState<{
     palabra: string;
     idEjercicio: number;
-  }>({ palabra: 'HOLA (Saludo)', idEjercicio: 1 });
+    idCuento?: number;
+  }>({ palabra: 'HOLA', idEjercicio: 1, idCuento: 1 });
 
   const [configAccesibilidad, setConfigAccesibilidad] =
     useState<ConfiguracionAccesibilidad>({
@@ -60,6 +72,30 @@ export const App: React.FC = () => {
       pausaSensorialActiva: false,
       modoPreExploracionSilenciosa: false,
     });
+
+  const handleNavigate = useCallback((vista: VistaActiva, customPath?: string) => {
+    setVistaActiva(vista);
+    const defaultPaths: Record<VistaActiva, string> = {
+      INICIO_PERFIL: '/',
+      CATALOGO_CUENTOS: '/cuentos',
+      PRACTICA_V1: '/practica-v1',
+      PRACTICA_V2: '/practica-v2',
+      MODULO_2_ARTICULACION: '/articulacion',
+      PANEL_TUTOR: '/tutor',
+    };
+    const nextPath = customPath || defaultPaths[vista] || '/';
+    if (window.location.pathname !== nextPath) {
+      window.history.pushState({}, '', nextPath);
+    }
+  }, []);
+
+  useEffect(() => {
+    const onPopState = () => {
+      setVistaActiva(resolveVistaFromPathname(window.location.pathname));
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   const cargarDatosPerfil = useCallback(async (idPerfil: number) => {
     const [listaPerfiles, listaCuentos, listaRecompensas, health] =
@@ -85,7 +121,6 @@ export const App: React.FC = () => {
     cargarDatosPerfil(perfilActivo.id_perfil);
   }, [cargarDatosPerfil, perfilActivo.id_perfil]);
 
-  // Sincronizar atributos de accesibilidad WCAG 2.2 AAA en el elemento raíz <html>
   useEffect(() => {
     const rootHtml = document.documentElement;
     rootHtml.setAttribute('data-contrast', configAccesibilidad.contraste);
@@ -114,7 +149,7 @@ export const App: React.FC = () => {
     const creado = await crearNuevoPerfil(payload);
     setPerfiles((prev) => [...prev, creado]);
     setPerfilActivo(creado);
-    setVistaActiva('CATALOGO_CUENTOS');
+    handleNavigate('CATALOGO_CUENTOS', '/cuentos');
   };
 
   const handleCompletarCuento = async (idCuento: number) => {
@@ -122,11 +157,14 @@ export const App: React.FC = () => {
     await cargarDatosPerfil(perfilActivo.id_perfil);
   };
 
-  const handleCanjearRecompensa = async (idRecompensa: number) => {
+  const handleCanjearRecompensa = async (
+    idRecompensa: number
+  ): Promise<{ ok: boolean; mensaje: string }> => {
     const res = await canjearRecompensaApi(perfilActivo.id_perfil, idRecompensa);
     if (res.ok) {
       await cargarDatosPerfil(perfilActivo.id_perfil);
     }
+    return { ok: res.ok, mensaje: res.mensaje };
   };
 
   const handleRegistrarIntento = async (
@@ -145,17 +183,17 @@ export const App: React.FC = () => {
   const handlePracticarEjercicio = (
     tipo: TipoCuento,
     palabra: string,
-    idEjercicio: number
+    idEjercicio: number,
+    idCuento?: number
   ) => {
-    setEjercicioSeleccionado({ palabra, idEjercicio });
+    setEjercicioSeleccionado({ palabra, idEjercicio, idCuento });
     if (tipo === 'LSM') {
-      setVistaActiva('MODULO_1_LSM');
+      handleNavigate('PRACTICA_V2', '/practica-v2');
     } else {
-      setVistaActiva('MODULO_2_ARTICULACION');
+      handleNavigate('MODULO_2_ARTICULACION', '/articulacion');
     }
   };
 
-  // Semáforo Cromático-Lumínico de Decibeles (Fase 2, Actividad 1.2)
   const dbClase =
     configAccesibilidad.nivelDecibeles < 50
       ? 'decibel-safe'
@@ -172,9 +210,6 @@ export const App: React.FC = () => {
 
   return (
     <div className="app-shell">
-      {/* =====================================================================
-          HEADER PERSISTENTE DUA & WCAG 2.2 AAA (MOCKUP ACT. 6)
-         ===================================================================== */}
       <header className="top-header-dua" role="banner">
         <div className="brand-block">
           <div className="brand-logo-badge" aria-hidden="true">
@@ -197,24 +232,16 @@ export const App: React.FC = () => {
             gap: '10px',
           }}
         >
-          {/* Contador de Estrellas / Puntos Acumulados */}
           <div
             className="star-counter-badge"
-            aria-label={`Puntos acumulados: ${perfilActivo.puntos_acumulados} estrellas`}
+            aria-label={`Puntos acumulados en BD: ${perfilActivo.puntos_acumulados}`}
           >
             <span>⭐</span>
-            <span>{perfilActivo.puntos_acumulados}</span>
+            <span>{perfilActivo.puntos_acumulados} pts</span>
           </div>
 
-          {/* Traducción Cromático-Lumínica del Sonido */}
-          <div
-            className={`decibel-pill ${dbClase}`}
-            title="Traducción Cromático-Lumínica del Sonido (Fase 2, Act. 1.2)"
-          >
-            {dbEtiqueta}
-          </div>
+          <div className={`decibel-pill ${dbClase}`}>{dbEtiqueta}</div>
 
-          {/* Botón Persistente de Calma: 'Pausa Sensorial' (Fase 2, Act. 1.1) */}
           <button
             type="button"
             className="btn-calm-sensory"
@@ -230,7 +257,6 @@ export const App: React.FC = () => {
               : '🌿 Pausa Sensorial'}
           </button>
 
-          {/* Conmutador de Contraste WCAG 2.2 AAA (7:1 Estándar vs 14:1 Nocturno) */}
           <button
             type="button"
             className="btn-secondary-aaa"
@@ -242,7 +268,6 @@ export const App: React.FC = () => {
                     : 'AAA_ESTANDAR',
               })
             }
-            title="Alternar modo de contraste WCAG 2.2 AAA (>= 7:1)"
           >
             {configAccesibilidad.contraste === 'AAA_ESTANDAR'
               ? '🌗 Contraste AAA Nocturno'
@@ -251,7 +276,6 @@ export const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Banner activo cuando el niño presiona el Botón Persistente de Calma ('Pausa Sensorial') */}
       {configAccesibilidad.pausaSensorialActiva && (
         <div className="sensory-pause-banner" role="alert">
           <div>
@@ -259,8 +283,8 @@ export const App: React.FC = () => {
               🌿 Modo de Calma y Pausa Sensorial Activo (DUA Principio III)
             </strong>
             <p style={{ margin: '4px 0 0 0' }}>
-              El sonido está silenciado al 100%, el brillo está suavizado y tu progreso en los
-              cuentos está completamente guardado sin límite de tiempo.
+              El sonido está silenciado al 100%, el brillo está suavizado y tu progreso en
+              PostgreSQL está guardado sin límite de tiempo.
             </p>
           </div>
           <button
@@ -273,9 +297,6 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* =====================================================================
-          CONTENIDO PRINCIPAL: LAS 5 VISTAS DEL SISTEMA
-         ===================================================================== */}
       <main role="main" style={{ flex: 1 }}>
         {vistaActiva === 'INICIO_PERFIL' && (
           <InicioPerfilView
@@ -285,7 +306,7 @@ export const App: React.FC = () => {
             onSelectPerfil={handleSelectPerfil}
             onCreatePerfil={handleCreatePerfil}
             onUpdateConfig={handleUpdateConfig}
-            onIrAlMenu={() => setVistaActiva('CATALOGO_CUENTOS')}
+            onIrAlMenu={() => handleNavigate('CATALOGO_CUENTOS', '/cuentos')}
           />
         )}
 
@@ -294,19 +315,30 @@ export const App: React.FC = () => {
             perfilActivo={perfilActivo}
             cuentos={cuentos}
             recompensas={recompensas}
-            onNavigate={setVistaActiva}
+            onNavigate={handleNavigate}
             onCompletarCuento={handleCompletarCuento}
             onCanjearRecompensa={handleCanjearRecompensa}
             onPracticarEjercicio={handlePracticarEjercicio}
           />
         )}
 
-        {vistaActiva === 'MODULO_1_LSM' && (
-          <ModuloLSMView
+        {vistaActiva === 'PRACTICA_V1' && (
+          <PracticaSenaV1View
             perfilActivo={perfilActivo}
+            cuentos={cuentos}
             senaInicial={ejercicioSeleccionado}
             onRegistrarIntento={handleRegistrarIntento}
-            onNavigate={setVistaActiva}
+            onNavigate={handleNavigate}
+          />
+        )}
+
+        {vistaActiva === 'PRACTICA_V2' && (
+          <ModuloLSMView
+            perfilActivo={perfilActivo}
+            cuentos={cuentos}
+            senaInicial={ejercicioSeleccionado}
+            onRegistrarIntento={handleRegistrarIntento}
+            onNavigate={handleNavigate}
           />
         )}
 
@@ -315,7 +347,7 @@ export const App: React.FC = () => {
             perfilActivo={perfilActivo}
             palabraInicial={ejercicioSeleccionado}
             onRegistrarIntento={handleRegistrarIntento}
-            onNavigate={setVistaActiva}
+            onNavigate={handleNavigate}
           />
         )}
 
@@ -332,12 +364,11 @@ export const App: React.FC = () => {
                 )
               );
             }}
-            onNavigate={setVistaActiva}
+            onNavigate={handleNavigate}
           />
         )}
       </main>
 
-      {/* Pie de Estado Técnico (Conexión API / PostgreSQL Docker) */}
       <footer
         style={{
           marginTop: '28px',
@@ -355,22 +386,19 @@ export const App: React.FC = () => {
         }}
       >
         <div>
-          <strong>Clave del Sistema:</strong> TSI-2026-MEEXUU •{' '}
-          <strong>Normativa:</strong> WCAG 2.2 AAA (≥7:1, ≥48×48 dp) + EN 301 549 + DUA
+          <strong>Clave:</strong> TSI-2026-MEEXUU • <strong>Rutas Activas:</strong>{' '}
+          <code>/practica-v1</code> (Original) y <code>/practica-v2</code> (DIX09)
         </div>
         <div>
-          <strong>Estado Backend/BD:</strong>{' '}
-          {healthInfo.online
-            ? healthInfo.dbConnected
-              ? '🟢 Conectado a PostgreSQL (db_meexuu)'
-              : '🟢 API Activa (Modo Resiliente RNF-06)'
-            : '🟡 Modo Offline Escolar Activo (RNF-06)'}
+          <strong>Estado Backend/PostgreSQL:</strong>{' '}
+          {healthInfo.online && healthInfo.dbConnected
+            ? '🟢 Conectado a PostgreSQL (db_meexuu)'
+            : healthInfo.online
+            ? '🟡 API Conectada'
+            : '🔴 Sin conexión a API'}
         </div>
       </footer>
 
-      {/* =====================================================================
-          BARRA DE NAVEGACIÓN INFERIOR ACCESIBLE (MOCKUP ACT. 6: >= 48x48 dp)
-         ===================================================================== */}
       <nav
         className="bottom-nav-aaa"
         aria-label="Navegación principal de Señas y Sonrisas"
@@ -379,9 +407,9 @@ export const App: React.FC = () => {
           type="button"
           className="bottom-nav-btn"
           aria-current={vistaActiva === 'INICIO_PERFIL' ? 'page' : undefined}
-          onClick={() => setVistaActiva('INICIO_PERFIL')}
+          onClick={() => handleNavigate('INICIO_PERFIL', '/')}
         >
-          <span style={{ fontSize: '1.4rem' }} aria-hidden="true">
+          <span style={{ fontSize: '1.3rem' }} aria-hidden="true">
             🧒
           </span>
           <span>1. Perfiles</span>
@@ -391,9 +419,9 @@ export const App: React.FC = () => {
           type="button"
           className="bottom-nav-btn"
           aria-current={vistaActiva === 'CATALOGO_CUENTOS' ? 'page' : undefined}
-          onClick={() => setVistaActiva('CATALOGO_CUENTOS')}
+          onClick={() => handleNavigate('CATALOGO_CUENTOS', '/cuentos')}
         >
-          <span style={{ fontSize: '1.4rem' }} aria-hidden="true">
+          <span style={{ fontSize: '1.3rem' }} aria-hidden="true">
             📚
           </span>
           <span>2. Cuentos</span>
@@ -402,13 +430,25 @@ export const App: React.FC = () => {
         <button
           type="button"
           className="bottom-nav-btn"
-          aria-current={vistaActiva === 'MODULO_1_LSM' ? 'page' : undefined}
-          onClick={() => setVistaActiva('MODULO_1_LSM')}
+          aria-current={vistaActiva === 'PRACTICA_V1' ? 'page' : undefined}
+          onClick={() => handleNavigate('PRACTICA_V1', '/practica-v1')}
         >
-          <span style={{ fontSize: '1.4rem' }} aria-hidden="true">
-            🤟
+          <span style={{ fontSize: '1.3rem' }} aria-hidden="true">
+            📷
           </span>
-          <span>3. Módulo LSM</span>
+          <span>3a. LSM v1 (Antes)</span>
+        </button>
+
+        <button
+          type="button"
+          className="bottom-nav-btn"
+          aria-current={vistaActiva === 'PRACTICA_V2' ? 'page' : undefined}
+          onClick={() => handleNavigate('PRACTICA_V2', '/practica-v2')}
+        >
+          <span style={{ fontSize: '1.3rem' }} aria-hidden="true">
+            ✨
+          </span>
+          <span>3b. LSM v2 (DIX09)</span>
         </button>
 
         <button
@@ -417,24 +457,24 @@ export const App: React.FC = () => {
           aria-current={
             vistaActiva === 'MODULO_2_ARTICULACION' ? 'page' : undefined
           }
-          onClick={() => setVistaActiva('MODULO_2_ARTICULACION')}
+          onClick={() => handleNavigate('MODULO_2_ARTICULACION', '/articulacion')}
         >
-          <span style={{ fontSize: '1.4rem' }} aria-hidden="true">
+          <span style={{ fontSize: '1.3rem' }} aria-hidden="true">
             👄
           </span>
-          <span>4. Articulación</span>
+          <span>4. Habla</span>
         </button>
 
         <button
           type="button"
           className="bottom-nav-btn"
           aria-current={vistaActiva === 'PANEL_TUTOR' ? 'page' : undefined}
-          onClick={() => setVistaActiva('PANEL_TUTOR')}
+          onClick={() => handleNavigate('PANEL_TUTOR', '/tutor')}
         >
-          <span style={{ fontSize: '1.4rem' }} aria-hidden="true">
+          <span style={{ fontSize: '1.3rem' }} aria-hidden="true">
             📊
           </span>
-          <span>5. Panel Tutor</span>
+          <span>5. Tutor</span>
         </button>
       </nav>
     </div>

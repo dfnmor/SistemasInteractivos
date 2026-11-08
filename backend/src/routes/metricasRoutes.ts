@@ -13,3 +13,4 @@ router.post('/', registrarMetricaIntento);
 router.get('/perfil/:id_perfil', getEstadisticasPerfil);
 
 export default router;
+

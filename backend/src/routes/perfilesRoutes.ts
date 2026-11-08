@@ -25,3 +25,4 @@ router.post('/', createPerfil);
 router.put('/:id', updatePerfil);
 
 export default router;
+

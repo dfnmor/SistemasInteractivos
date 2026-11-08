@@ -171,3 +171,4 @@ Abre tu navegador en **`http://localhost:5173`**.
 - **Traducción Cromático-Lumínica del Sonido (DUA Principio I):** Semáforo visual de decibeles en la barra superior (`<50 dB` Zona Segura en azul pastel, `50-65 dB` Advertencia suave, `>65 dB` atenúa automáticamente la luminancia).
 - **Botón Persistente de Calma (`Pausa Sensorial` — DUA Principio III):** Silencia inmediatamente la aplicación y suaviza el brillo sin perder el progreso ni aplicar penalizaciones.
 - **Retroalimentación Positiva No Punitiva (RNF-08):** Ausencia total de temporizadores regresivos o mensajes de "fallo"; los reintentos otorgan estrellas de esfuerzo y guían visualmente el encuadre de la mano o los labios.
+

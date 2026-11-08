@@ -13,3 +13,4 @@ router.get('/', getRecompensas);
 router.post('/canjear', canjearRecompensa);
 
 export default router;
+

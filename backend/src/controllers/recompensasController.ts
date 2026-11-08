@@ -176,3 +176,4 @@ export const canjearRecompensa = async (req: Request, res: Response): Promise<vo
     });
   }
 };
+
