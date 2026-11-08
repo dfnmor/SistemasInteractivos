@@ -32,52 +32,55 @@ const FONEMAS_DISPONIBLES: FonemaArticulacionItem[] = [
     categoria: 'FONEMA BILABIAL',
     fonema: '/m/ - /a/ • MA - MÁ',
     palabraMostrar: 'MA - MÁ',
-    paso1: 'Paso 1: Presiona los labios con suavidad y luego ábrelos ampliamente para la "A".',
-    indicadorTactil: 'Vibración Nasal Suave',
+    paso1: 'Paso 1: Presiona los labios con suavidad',
+    indicadorTactil: 'Vibración Nasal',
     aperturaBucal: 'CERRADO_SUAVE',
     retroalimentacionExito:
       "¡Excelente sellado labial! Tus labios hicieron el contacto perfecto para 'MA'.",
   },
   {
     idEjercicio: 12,
-    categoria: 'APERTURA VOCÁLICA (BOSQUEJO FASE 1)',
-    fonema: '/k/ - /a/ - /s/ - /a/ • CA - SA',
+    categoria: 'APERTURA VOCÁLICA',
+    fonema: '/k/ - /a/ • CA - SA',
     palabraMostrar: 'CA - SA',
-    paso1: 'Paso 1: Abre la boca grande en "CA" y sonríe suavemente dejando salir el aire en "SA".',
-    indicadorTactil: 'Soplo Frontal Suave',
+    paso1: 'Paso 1: Abre la boca grande en "CA" y sonríe en "SA"',
+    indicadorTactil: 'Soplo Suave',
     aperturaBucal: 'ABIERTO_VOCAL',
     retroalimentacionExito:
-      "¡Gran apertura bucal! Pronunciaste las dos sílabas de 'CA-SA' con claridad.",
+      "¡Excelente apertura vocálica! Pronunciaste 'CA - SA' con gran claridad.",
   },
   {
     idEjercicio: 11,
-    categoria: 'FONEMA BILABIAL EXPLOSIVO',
+    categoria: 'FONEMA BILABIAL',
     fonema: '/p/ - /a/ • PA - PÁ',
     palabraMostrar: 'PA - PÁ',
-    paso1: 'Paso 1: Junta los labios y suelta una pequeña burbuja de aire al abrir la boca.',
-    indicadorTactil: 'Pulso de Aire Labial',
+    paso1: 'Paso 1: Junta los labios y suelta el aire suavemente',
+    indicadorTactil: 'Pulso Labial',
     aperturaBucal: 'CERRADO_SUAVE',
     retroalimentacionExito:
-      "¡Muy bien! El impulso labial para 'PA-PÁ' fue simétrico y claro.",
+      "¡Excelente sellado labial! Tus labios hicieron el contacto perfecto para 'PA'.",
   },
   {
     idEjercicio: 13,
     categoria: 'REDONDEO LABIAL',
-    fonema: '/s/ - /o/ - /p/ - /a/ • SO - PA',
+    fonema: '/s/ - /o/ • SO - PA',
     palabraMostrar: 'SO - PA',
-    paso1: 'Paso 1: Redondea tus labios como un círculo para la "O" y ciérralos en "PA".',
-    indicadorTactil: 'Círculo Labial Simétrico',
+    paso1: 'Paso 1: Redondea tus labios como un círculo para la "O"',
+    indicadorTactil: 'Círculo Labial',
     aperturaBucal: 'REDONDEADO',
     retroalimentacionExito:
-      "¡Excelente redondeo de labios en la vocal 'O' de 'SO-PA'!",
+      "¡Excelente redondeo labial! Tus labios formaron el círculo perfecto para 'SO'.",
   },
 ];
 
 export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
+  perfilActivo,
   palabraInicial,
   onRegistrarIntento,
   onNavigate,
 }) => {
+  const esNoLector = perfilActivo.nivel_lectura === 'NO_LECTOR';
+
   const inicial =
     FONEMAS_DISPONIBLES.find((f) => f.idEjercicio === palabraInicial?.idEjercicio) ||
     FONEMAS_DISPONIBLES[0];
@@ -89,7 +92,8 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
   );
   const [camaraEspejoActiva, setCamaraEspejoActiva] = useState<boolean>(false);
   const [comprobando, setComprobando] = useState<boolean>(false);
-  const [precisionLabial, setPrecisionLabial] = useState<number>(90);
+  const [precisionLabial, setPrecisionLabial] = useState<number>(92);
+  const [esExito, setEsExito] = useState<boolean>(true);
   const [mensajeFeedback, setMensajeFeedback] = useState<string>(
     inicial.retroalimentacionExito
   );
@@ -98,7 +102,7 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
   const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
-    const intervalMs = camaraLenta ? 1600 : 900;
+    const intervalMs = camaraLenta ? 1500 : 850;
     const timer = setInterval(() => {
       setEtapaAnimacionBoca((prev) => (prev === 'CERRAR' ? 'ABRIR' : 'CERRAR'));
     }, intervalMs);
@@ -134,7 +138,7 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
         }
-      }, 100);
+      }, 120);
     } catch {
       setCamaraEspejoActiva(false);
     }
@@ -143,399 +147,570 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
   const handleComprobarArticulacion = async (precisionSimulada: number) => {
     setComprobando(true);
     setPrecisionLabial(precisionSimulada);
-    setTimeout(async () => {
+    try {
       const resp = await onRegistrarIntento(
         fonemaActual.idEjercicio,
         precisionSimulada
       );
-      setMensajeFeedback(
-        precisionSimulada >= 75
-          ? `${fonemaActual.retroalimentacionExito} (${resp.mensaje})`
-          : resp.mensaje
-      );
+      if (precisionSimulada >= 75) {
+        setEsExito(true);
+        setMensajeFeedback(fonemaActual.retroalimentacionExito);
+      } else {
+        setEsExito(false);
+        setCamaraLenta(true);
+        setMensajeFeedback(
+          `¡Casi! Intenta otra vez: ${resp.mensaje}`
+        );
+      }
+    } finally {
       setComprobando(false);
-    }, 600);
+    }
   };
 
   return (
-    <section aria-labelledby="titulo-modulo-articulacion">
-      {/* Cabecera de Sesión de Habla (Mockup 4 - Actividad 6) */}
-      <div
-        className="card-aaa"
-        style={{
-          marginBottom: '20px',
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '12px',
-          border: '3px solid var(--purple-aaa)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button
-            type="button"
-            className="btn-secondary-aaa"
-            onClick={() => onNavigate('CATALOGO_CUENTOS')}
-          >
-            ← Sesión de habla
-          </button>
-          <div>
-            <span className="badge-aaa badge-articulacion">
-              Módulo 2 • {fonemaActual.categoria} (RF-08 / RF-09)
-            </span>
-            <h1
-              id="titulo-modulo-articulacion"
-              style={{ margin: '4px 0 0 0', fontSize: '1.75rem' }}
-            >
-              Di la palabra: {fonemaActual.fonema} ⭐⭐
-            </h1>
-          </div>
-        </div>
+    <section aria-labelledby="titulo-sesion-habla">
+      {/* =====================================================================
+          1. BARRA SUPERIOR IDÉNTICA AL MOCKUP 4 (Fase 2, Act. 6, p. 9)
+             "← | Sesión de habla"
+         ===================================================================== */}
+      <div className="screen-back-header">
+        <button
+          type="button"
+          className="btn-back-circle"
+          onClick={() => onNavigate('CATALOGO_CUENTOS', '/cuentos')}
+          aria-label="Volver al menú principal"
+        >
+          ←
+        </button>
+        <h1
+          id="titulo-sesion-habla"
+          style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, flex: 1 }}
+        >
+          {esNoLector ? '👄 Habla' : 'Sesión de habla'}
+        </h1>
 
-        {/* Selector de palabras / fonemas */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-          {FONEMAS_DISPONIBLES.map((item) => (
-            <button
-              key={item.idEjercicio}
-              type="button"
-              className={
-                fonemaActual.idEjercicio === item.idEjercicio
-                  ? 'btn-purple-aaa'
-                  : 'btn-secondary-aaa'
-              }
-              onClick={() => {
-                setFonemaActual(item);
-                setMensajeFeedback(item.retroalimentacionExito);
-              }}
-            >
-              👄 {item.palabraMostrar}
-            </button>
-          ))}
+        {/* Selector compacto de sílabas de la BD */}
+        <div style={{ display: 'flex', gap: '4px' }}>
+          {FONEMAS_DISPONIBLES.map((item) => {
+            const activo = item.idEjercicio === fonemaActual.idEjercicio;
+            return (
+              <button
+                key={item.idEjercicio}
+                type="button"
+                onClick={() => {
+                  setFonemaActual(item);
+                  setEsExito(true);
+                  setMensajeFeedback(item.retroalimentacionExito);
+                }}
+                style={{
+                  minHeight: '48px',
+                  padding: '4px 8px',
+                  borderRadius: '10px',
+                  border: activo
+                    ? '2px solid var(--primary-aaa)'
+                    : '1.5px solid var(--border-subtle)',
+                  backgroundColor: activo ? 'var(--bg-card-highlight)' : '#FFFFFF',
+                  color: '#091326',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                {item.palabraMostrar.replace(' - ', '')}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Instrucción Paso 1 y Etiqueta de Vibración Nasal (Mockup 4) */}
+      {/* =====================================================================
+          2. TARJETA DE FONEMA IDÉNTICA AL MOCKUP 4 + BOCETO "Articulación oral"
+             - "FONEMA BILABIAL" / "Di la palabra:"
+             - "🔊 /m/ - /a/ • MA - MÁ" | "★★☆"
+             - "💡 Paso 1: Presiona los labios con suavidad" | "〰 Vibración Nasal"
+         ===================================================================== */}
       <div
         className="card-aaa"
         style={{
-          marginBottom: '20px',
-          backgroundColor: 'var(--bg-surface)',
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '12px',
+          padding: '14px 16px',
+          marginBottom: '12px',
+          borderRadius: '18px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '2rem' }} aria-hidden="true">
-            💡
-          </span>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '6px',
+          }}
+        >
           <div>
-            <strong style={{ fontSize: '1.1rem' }}>{fonemaActual.paso1}</strong>
-            <div style={{ fontSize: '0.92rem', color: 'var(--text-secondary)' }}>
-              Apoyo visual articulatorio sin dependencia exclusiva del canal auditivo (WCAG 1.2 / DUA P1)
-            </div>
-          </div>
-        </div>
-        <span className="badge-aaa badge-articulacion" style={{ fontSize: '0.95rem' }}>
-          〰️ {fonemaActual.indicadorTactil}
-        </span>
-      </div>
-
-      {/* Dos Columnas: Modelo Guía Terapeuta (Video de Articulación) y Espejo AR del Niño */}
-      <div className="grid-2-cols" style={{ marginBottom: '22px' }}>
-        {/* Columna 1: Modelo Guía Terapeuta + Onda de Vibración Fonética Continua */}
-        <div className="card-aaa" style={{ border: '3px solid var(--purple-aaa)' }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '12px',
-            }}
-          >
-            <span className="badge-aaa badge-articulacion">
-              👩‍⚕️ Modelo Guía: Terapeuta de Lenguaje
-            </span>
-            <span className="badge-aaa badge-lsm">
-              {camaraLenta ? '🐢 Cámara Lenta (0.5x)' : '▶ Velocidad Normal (1.0x)'}
-            </span>
-          </div>
-
-          {/* Animación SVG de Apoyo Labial Sincronizado */}
-          <div
-            style={{
-              backgroundColor: 'var(--purple-bg-soft)',
-              border: '3px solid var(--purple-aaa)',
-              borderRadius: '18px',
-              padding: '24px',
-              textAlign: 'center',
-              marginBottom: '16px',
-            }}
-          >
-            <svg
-              width="240"
-              height="135"
-              viewBox="0 0 240 135"
-              role="img"
-              aria-label={`Animación guía de movimiento labial para pronunciar ${fonemaActual.palabraMostrar}`}
-              style={{ maxWidth: '100%' }}
-            >
-              {/* Contorno de mejillas y mentón guía */}
-              <rect
-                x="10"
-                y="10"
-                width="220"
-                height="115"
-                rx="24"
-                fill="#FFFFFF"
-                stroke="#4C1D95"
-                strokeWidth="3"
-              />
-              {/* Labio superior e inferior animados según sílaba */}
-              {etapaAnimacionBoca === 'CERRAR' ? (
-                <g>
-                  <path
-                    d="M 55 68 Q 90 52 120 62 Q 150 52 185 68"
-                    fill="none"
-                    stroke="#9D174D"
-                    strokeWidth="9"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M 55 68 Q 120 82 185 68"
-                    fill="none"
-                    stroke="#BE185D"
-                    strokeWidth="9"
-                    strokeLinecap="round"
-                  />
-                  {/* Puntos de referencia labiales verdes */}
-                  <circle cx="55" cy="68" r="5" fill="#047857" />
-                  <circle cx="120" cy="65" r="5" fill="#047857" />
-                  <circle cx="185" cy="68" r="5" fill="#047857" />
-                </g>
-              ) : (
-                <g>
-                  <ellipse
-                    cx="120"
-                    cy="68"
-                    rx={fonemaActual.aperturaBucal === 'REDONDEADO' ? 36 : 58}
-                    ry={28}
-                    fill="#831843"
-                    stroke="#BE185D"
-                    strokeWidth="8"
-                  />
-                  <path
-                    d="M 90 50 L 150 50"
-                    stroke="#FFFFFF"
-                    strokeWidth="6"
-                    strokeLinecap="round"
-                  />
-                  <circle cx="62" cy="68" r="5" fill="#047857" />
-                  <circle cx="120" cy="40" r="5" fill="#047857" />
-                  <circle cx="120" cy="96" r="5" fill="#047857" />
-                  <circle cx="178" cy="68" r="5" fill="#047857" />
-                </g>
-              )}
-            </svg>
-
-            <div
-              style={{
-                fontSize: '1.45rem',
-                fontWeight: 700,
-                color: '#091326',
-                backgroundColor: '#FFFFFF',
-                padding: '8px 16px',
-                borderRadius: '12px',
-                border: '2px solid #4C1D95',
-                display: 'inline-block',
-                marginTop: '8px',
-              }}
-            >
-              {etapaAnimacionBoca === 'CERRAR'
-                ? `1️⃣ Cierre Labial (${fonemaActual.palabraMostrar.split('-')[0].trim()})`
-                : `2️⃣ Apertura Vocálica (${fonemaActual.palabraMostrar})`}
-            </div>
-          </div>
-
-          {/* Gráfica de Onda de Vibración Fonética Continua (Mockup 4) */}
-          <div
-            style={{
-              backgroundColor: 'var(--bg-app)',
-              padding: '14px 16px',
-              borderRadius: '14px',
-              border: '2px solid var(--border-subtle)',
-              marginBottom: '14px',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '6px',
-              }}
-            >
-              <strong>🌊 Vibración Fonética Continua</strong>
-              <span className="badge-aaa badge-lsm">Zona Segura &lt;50 dB</span>
-            </div>
-            <svg width="100%" height="46" viewBox="0 0 360 46" aria-hidden="true">
-              <path
-                d="M 0 23 Q 30 4, 60 23 T 120 23 T 180 23 T 240 23 T 300 23 T 360 23"
-                fill="none"
-                stroke="#004488"
-                strokeWidth="4"
-              />
-            </svg>
-          </div>
-
-          <button
-            type="button"
-            className="btn-secondary-aaa"
-            style={{ width: '100%' }}
-            onClick={() => setCamaraLenta((prev) => !prev)}
-          >
-            🔄 Repetir • {camaraLenta ? 'Cambiar a Velocidad 1.0x' : 'Ver fonema lento (0.5x)'}
-          </button>
-        </div>
-
-        {/* Columna 2: Espejo AR de Imitación Bucal del Niño (Mockup 4) */}
-        <div className="card-aaa" style={{ border: '3px solid var(--purple-aaa)' }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '12px',
-              flexWrap: 'wrap',
-              gap: '8px',
-            }}
-          >
-            <span className="badge-aaa badge-success">✓ Alineado frente al Espejo AR</span>
-            <span className="badge-aaa badge-articulacion">
-              Cierre y Simetría Labial Activa
-            </span>
-          </div>
-
-          <div
-            className="ar-camera-stage"
-            style={{ minHeight: '260px', borderColor: 'var(--purple-aaa)' }}
-          >
-            {camaraEspejoActiva ? (
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="ar-video-element"
-                aria-label="Espejo AR en vivo para practicar articulación oral"
-              />
-            ) : (
-              <div className="ar-hand-guide-box" style={{ borderColor: '#C084FC' }}>
-                <div style={{ fontSize: '3.8rem', marginBottom: '6px' }}>🧒🏽👄</div>
-                <div
-                  style={{
-                    fontWeight: 700,
-                    color: '#A7F3D0',
-                    marginBottom: '6px',
-                  }}
-                >
-                  ESPEJO AR • PUNTOS LABIALES DETECTADOS
-                </div>
-                <p style={{ margin: 0, fontSize: '0.92rem', color: '#F8FAFC' }}>
-                  Mira cómo se juntan y abren tus labios al decir{' '}
-                  <strong>&quot;{fonemaActual.palabraMostrar}&quot;</strong>
-                </p>
+            {!esNoLector && (
+              <div
+                style={{
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  color: '#2563EB',
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {fonemaActual.categoria} • Di la palabra:
               </div>
             )}
-          </div>
-
-          {/* Indicadores de Cierre y Simetría Labial y ¡Abre juntos! (Mockup 4) */}
-          <div className="grid-2-cols" style={{ marginTop: '14px', marginBottom: '14px' }}>
             <div
               style={{
-                padding: '10px 14px',
-                borderRadius: '12px',
-                backgroundColor: 'var(--bg-app)',
-                border: '2px solid var(--border-subtle)',
+                fontSize: '1.25rem',
+                fontWeight: 700,
+                color: '#091326',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
               }}
             >
-              <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>
-                👄 Cierre y Simetría Labial
-              </div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--primary-aaa)' }}>
-                Óptima ({precisionLabial}%)
-              </div>
-            </div>
-
-            <div
-              style={{
-                padding: '10px 14px',
-                borderRadius: '12px',
-                backgroundColor: 'var(--success-bg)',
-                border: '2px solid var(--success-border)',
-                color: 'var(--success-text)',
-              }}
-            >
-              <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>
-                ✨ Sincronía Fonética
-              </div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>
-                ¡Abre juntos! Correcto
-              </div>
+              <span
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  backgroundColor: '#DBEAFE',
+                  color: '#1E40AF',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.95rem',
+                }}
+                aria-hidden="true"
+              >
+                🔊
+              </span>
+              <span>
+                {esNoLector ? fonemaActual.palabraMostrar : fonemaActual.fonema}
+              </span>
             </div>
           </div>
 
-          {/* Botón Principal ¡Listo! Comprobar (Mockup 4) */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-            <button
-              type="button"
-              className="btn-primary-aaa"
-              style={{ flex: '1 1 200px' }}
-              disabled={comprobando}
-              onClick={() => handleComprobarArticulacion(90)}
-            >
-              {comprobando ? '⏳ Comprobando articulación...' : '✓ ¡Listo! Comprobar (+25 ⭐)'}
-            </button>
+          <div
+            style={{
+              color: '#F59E0B',
+              fontSize: '1.1rem',
+              letterSpacing: '1px',
+            }}
+            aria-label="2 de 3 estrellas"
+          >
+            ★★☆
+          </div>
+        </div>
 
-            <button
-              type="button"
-              className="btn-secondary-aaa"
-              onClick={toggleEspejoCamara}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px',
+            paddingTop: '8px',
+            borderTop: '1px solid var(--border-subtle)',
+            flexWrap: 'wrap',
+          }}
+        >
+          {!esNoLector ? (
+            <div
+              style={{
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                color: 'var(--text-secondary)',
+              }}
             >
-              {camaraEspejoActiva ? '⏹ Apagar Espejo Web' : '📷 Activar Espejo de Cámara'}
-            </button>
+              💡 {fonemaActual.paso1}
+            </div>
+          ) : (
+            <div style={{ fontSize: '1.3rem' }} aria-hidden="true">
+              💡 👄 ➡️ 😊
+            </div>
+          )}
+
+          <span
+            style={{
+              backgroundColor: '#DCFCE7',
+              color: '#065F46',
+              fontSize: '0.74rem',
+              fontWeight: 700,
+              padding: '3px 10px',
+              borderRadius: '999px',
+            }}
+          >
+            〰 {fonemaActual.indicadorTactil}
+          </span>
+        </div>
+      </div>
+
+      {/* =====================================================================
+          3. TARJETA "Modelo Guía: Terapeuta" IDÉNTICA AL MOCKUP 4
+             - Cabecera: "👤 Modelo Guía: Terapeuta" + botón circular azul "▶"
+             - Centro: Boca animada + onda azul "Vibración Fonética Continua"
+         ===================================================================== */}
+      <div
+        className="card-aaa"
+        style={{
+          padding: '14px 16px',
+          marginBottom: '12px',
+          borderRadius: '18px',
+          backgroundColor: '#F8FAFC',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '8px',
+          }}
+        >
+          <div
+            style={{
+              fontSize: '0.84rem',
+              fontWeight: 700,
+              color: 'var(--text-secondary)',
+            }}
+          >
+            👤 {esNoLector ? 'Guía' : 'Modelo Guía: Terapeuta'}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setCamaraLenta((prev) => !prev)}
+            style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '50%',
+              backgroundColor: '#2563EB',
+              color: '#FFFFFF',
+              border: '2px solid #1E3A8A',
+              fontSize: '1rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            aria-label="Reproducir modelo guía de terapeuta"
+          >
+            ▶
+          </button>
+        </div>
+
+        {/* Boca animada + Onda senoidal continua como en el Mockup 4 */}
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '2.4rem', lineHeight: 1 }} aria-hidden="true">
+            {etapaAnimacionBoca === 'CERRAR' ? '👄' : '🗣️'}
+          </div>
+
+          <svg
+            width="100%"
+            height="42"
+            viewBox="0 0 320 42"
+            aria-hidden="true"
+            style={{ marginTop: '4px' }}
+          >
+            <path
+              d="M 10 21 Q 35 3, 60 21 T 110 21 T 160 21 T 210 21 T 260 21 T 310 21"
+              fill="none"
+              stroke="#3B82F6"
+              strokeWidth="3.5"
+              strokeLinecap="round"
+            />
+          </svg>
+
+          {!esNoLector && (
+            <div
+              style={{
+                fontSize: '0.74rem',
+                fontWeight: 700,
+                color: '#2563EB',
+              }}
+            >
+              Vibración Fonética Continua {camaraLenta ? '(0.5x Lento)' : '(1.0x)'}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* =====================================================================
+          4. TARJETA DE ESPEJO AR CON CÁMARA IDÉNTICA AL MOCKUP 4
+             - Píldora verde superior izquierda: "✓ Alineado"
+             - Silueta labial punteada en el centro sobre el video
+             - Dos indicadores debajo: "👄 Cierre y Simetría Labial" | "¡Abre juntos! Correcto"
+         ===================================================================== */}
+      <div
+        className="card-aaa"
+        style={{
+          padding: '12px',
+          marginBottom: '12px',
+          borderRadius: '18px',
+        }}
+      >
+        <div
+          className="ar-camera-stage"
+          style={{
+            minHeight: '190px',
+            borderRadius: '16px',
+            marginBottom: '10px',
+          }}
+        >
+          {/* Píldora superior izquierda idéntica al Mockup 4: "✓ Alineado" */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '10px',
+              left: '10px',
+              zIndex: 6,
+              backgroundColor: '#10B981',
+              color: '#FFFFFF',
+              padding: '4px 12px',
+              borderRadius: '999px',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            <span>✓</span>
+            <span>{esNoLector ? 'OK' : 'Alineado'}</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={toggleEspejoCamara}
+            style={{
+              position: 'absolute',
+              top: '10px',
+              right: '10px',
+              zIndex: 6,
+              minHeight: '48px',
+              backgroundColor: 'rgba(15, 23, 42, 0.85)',
+              color: '#FFFFFF',
+              border: '1.5px solid #94A3B8',
+              borderRadius: '999px',
+              padding: '4px 12px',
+              fontSize: '0.74rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            {camaraEspejoActiva ? '⏹ Espejo' : '📷 Activar espejo'}
+          </button>
+
+          {camaraEspejoActiva && (
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="ar-video-element"
+              style={{ width: '100%', height: '190px' }}
+              aria-label="Espejo de cámara frontal para articulación oral"
+            />
+          )}
+
+          {/* Contorno guía labial punteado en el centro del espejo AR (Mockup 4) */}
+          <div
+            style={{
+              position: 'relative',
+              zIndex: 4,
+              width: '150px',
+              height: '92px',
+              borderRadius: '48px',
+              border: '2.5px dashed #34D399',
+              backgroundColor: 'rgba(16, 185, 129, 0.14)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <span style={{ fontSize: '2.3rem' }} aria-hidden="true">
+              👄
+            </span>
+          </div>
+        </div>
+
+        {/* Dos indicadores inferiores lado a lado idénticos al Mockup 4 */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '10px',
+            alignItems: 'center',
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontSize: '0.74rem',
+                fontWeight: 700,
+                color: 'var(--text-secondary)',
+                marginBottom: '4px',
+              }}
+            >
+              👄 {esNoLector ? 'Labios' : 'Cierre y Simetría Labial'}
+            </div>
+            <div className="progress-track-aaa" style={{ height: '8px' }}>
+              <div
+                className="progress-fill-aaa"
+                style={{ width: `${precisionLabial}%` }}
+              />
+            </div>
+          </div>
+
+          <div>
+            <div
+              style={{
+                fontSize: '0.74rem',
+                fontWeight: 700,
+                color: '#047857',
+                marginBottom: '4px',
+                textAlign: 'right',
+              }}
+            >
+              {esNoLector ? '✓ OK' : '¡Abre juntos! Correcto'}
+            </div>
+            <div className="progress-track-aaa" style={{ height: '8px' }}>
+              <div
+                className="progress-fill-success"
+                style={{ width: `${precisionLabial}%` }}
+              />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Tarjeta Inferior de Retroalimentación Positiva (Mockup 4: "¡Excelente sellado labial!") */}
+      {/* =====================================================================
+          5. FILA DE BOTONES IDÉNTICA AL MOCKUP 4:
+             - Izquierda: "↻ Repetir / Ver fonema lento"
+             - Derecha: "✓ ¡Listo! Comprobar"
+         ===================================================================== */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1.35fr',
+          gap: '10px',
+          marginBottom: '10px',
+        }}
+      >
+        <button
+          type="button"
+          className="btn-secondary-aaa"
+          style={{
+            borderRadius: '16px',
+            flexDirection: 'column',
+            gap: '2px',
+            padding: '8px 10px',
+          }}
+          onClick={() => setCamaraLenta((prev) => !prev)}
+        >
+          <span style={{ fontSize: '0.92rem', fontWeight: 700 }}>
+            ↻ {esNoLector ? '🐢' : 'Repetir'}
+          </span>
+          {!esNoLector && (
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+              {camaraLenta ? 'Velocidad 1.0x' : 'Ver fonema lento'}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          className="btn-primary-aaa"
+          style={{
+            borderRadius: '16px',
+            backgroundColor: '#2563EB',
+            fontSize: '0.96rem',
+          }}
+          disabled={comprobando}
+          onClick={() => handleComprobarArticulacion(92)}
+        >
+          <span>✓</span>
+          <span>
+            {comprobando
+              ? '...'
+              : esNoLector
+              ? '¡Listo!'
+              : '¡Listo! Comprobar'}
+          </span>
+        </button>
+      </div>
+
+      {/* Botones rápidos de simulación (acierto / fallo) conectados a TABLA_METRICA_INTENTO */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+        <button
+          type="button"
+          className="btn-success-aaa"
+          style={{ flex: 1, fontSize: '0.8rem', padding: '6px 10px' }}
+          disabled={comprobando}
+          onClick={() => handleComprobarArticulacion(94)}
+        >
+          ✓ Simular acierto (+25 ★)
+        </button>
+        <button
+          type="button"
+          className="btn-secondary-aaa"
+          style={{
+            flex: 1,
+            fontSize: '0.8rem',
+            padding: '6px 10px',
+            backgroundColor: 'var(--warn-bg)',
+            color: 'var(--warn-text)',
+            borderColor: 'var(--warn-border)',
+          }}
+          disabled={comprobando}
+          onClick={() => handleComprobarArticulacion(60)}
+        >
+          ✗ Simular fallo
+        </button>
+      </div>
+
+      {/* =====================================================================
+          6. TARJETA VERDE MENTA INFERIOR IDÉNTICA AL MOCKUP 4:
+             "😊 ¡Excelente sellado labial! Tus labios hicieron el contacto perfecto para 'MA'."
+         ===================================================================== */}
       <div
         className="card-aaa"
         style={{
-          backgroundColor: 'var(--success-bg)',
-          borderColor: 'var(--success-border)',
-          color: 'var(--success-text)',
-          borderWidth: '3px',
+          padding: '14px 16px',
+          borderRadius: '18px',
+          backgroundColor: esExito ? '#DCFCE7' : 'var(--warn-bg)',
+          border: `2px solid ${esExito ? '#10B981' : 'var(--warn-border)'}`,
+          color: esExito ? '#064E3B' : 'var(--warn-text)',
         }}
         role="status"
         aria-live="polite"
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <span style={{ fontSize: '2.2rem' }} aria-hidden="true">
-            😊
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={{ fontSize: '1.8rem' }} aria-hidden="true">
+            {esExito ? '😊' : '💪'}
           </span>
           <div>
-            <h2 style={{ margin: 0, fontSize: '1.28rem' }}>
-              ¡Excelente sellado labial!
+            <h2 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700 }}>
+              {esExito
+                ? '¡Excelente sellado labial!'
+                : '¡Casi! Intenta otra vez'}
             </h2>
-            <p style={{ margin: '4px 0 0 0', fontWeight: 600 }}>{mensajeFeedback}</p>
+            {!esNoLector && (
+              <p
+                style={{
+                  margin: '2px 0 0 0',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                }}
+              >
+                {mensajeFeedback}
+              </p>
+            )}
           </div>
         </div>
       </div>
     </section>
   );
 };
-

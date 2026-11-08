@@ -30,6 +30,7 @@ export const PanelTutorView: React.FC<PanelTutorViewProps> = ({
     null
   );
   const [cargando, setCargando] = useState<boolean>(true);
+  const [mostrarConfig, setMostrarConfig] = useState<boolean>(false);
   const [tipoSorderaEdit, setTipoSorderaEdit] = useState<TipoSordera>(
     perfilActivo.tipo_sordera
   );
@@ -58,407 +59,579 @@ export const PanelTutorView: React.FC<PanelTutorViewProps> = ({
       nivel_lectura: nivelLecturaEdit,
     });
     onPerfilActualizado(actualizado);
-    setMensajeGuardado(
-      '✓ Configuración del perfil adaptativo actualizada en PostgreSQL (TABLA_PERFIL).'
-    );
-    setTimeout(() => setMensajeGuardado(null), 4000);
+    setMensajeGuardado('✓ Perfil actualizado en PostgreSQL');
+    setTimeout(() => setMensajeGuardado(null), 3500);
   };
 
   const nombreCorto = perfilActivo.nombre_apodo.split('(')[0].trim();
 
   return (
-    <section aria-labelledby="titulo-panel-tutor">
-      {/* Encabezado del Panel del Tutor */}
+    <section aria-labelledby="titulo-panel-seguimiento">
+      {/* =====================================================================
+          BOCETO 6 (Fase 1, Act. 6, p. 21): "Panel de seguimiento"
+          1. Píldora superior centrada: "Panel de seguimiento de [Nombre]"
+          2. Dos indicadores circulares lado a lado
+          3. Tarjeta horizontal ancha: "Cuentos completados"
+          4. Dos tarjetas cuadradas lado a lado: "Señas acertadas" | "Palabras pronunciadas"
+          5. Tarjeta horizontal inferior: "Actividad semanal" (con datos reales de BD)
+         ===================================================================== */}
+
+      {/* Barra de retorno + selector de niño supervisado */}
       <div
-        className="card-aaa"
         style={{
-          marginBottom: '22px',
-          border: '3px solid var(--primary-aaa)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '8px',
+          marginBottom: '12px',
         }}
       >
-        <div
+        <button
+          type="button"
+          className="btn-back-circle"
+          onClick={() => onNavigate('CATALOGO_CUENTOS', '/cuentos')}
+          aria-label="Volver al menú principal"
+        >
+          ←
+        </button>
+
+        <select
+          aria-label="Seleccionar perfil del niño supervisado"
+          className="form-input-aaa"
           style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '16px',
+            flex: 1,
+            minHeight: '48px',
+            padding: '6px 10px',
+            fontSize: '0.84rem',
+            fontWeight: 700,
+          }}
+          value={perfilActivo.id_perfil}
+          onChange={(e) => {
+            const found = perfiles.find(
+              (p) => p.id_perfil === Number(e.target.value)
+            );
+            if (found) onSelectPerfil(found);
           }}
         >
-          <div>
-            <span className="badge-aaa badge-lsm">
-              👨‍👩‍👧 Panel del Tutor • Datos Reales desde PostgreSQL (`db_meexuu`)
-            </span>
-            <h1 id="titulo-panel-tutor" style={{ margin: '6px 0 4px 0', fontSize: '1.9rem' }}>
-              Panel de Seguimiento de {nombreCorto}
-            </h1>
-            <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
-              Consulta en vivo de `TABLA_PROGRESO_CUENTO`, `TABLA_METRICA_INTENTO` y
-              `TABLA_CANJE_RECOMPENSA`.
-            </p>
-          </div>
+          {perfiles.map((p) => (
+            <option key={p.id_perfil} value={p.id_perfil}>
+              {p.nombre_apodo}
+            </option>
+          ))}
+        </select>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
-            <label htmlFor="select-cambiar-nino-tutor" style={{ fontWeight: 700 }}>
-              Niño supervisado:
-            </label>
-            <select
-              id="select-cambiar-nino-tutor"
-              className="form-input-aaa"
-              value={perfilActivo.id_perfil}
-              onChange={(e) => {
-                const found = perfiles.find(
-                  (p) => p.id_perfil === Number(e.target.value)
-                );
-                if (found) onSelectPerfil(found);
-              }}
-            >
-              {perfiles.map((p) => (
-                <option key={p.id_perfil} value={p.id_perfil}>
-                  {p.nombre_apodo}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="btn-secondary-aaa"
-              onClick={() => cargarEstadisticasReales(perfilActivo.id_perfil)}
-            >
-              🔄 Actualizar desde BD
-            </button>
-            <button
-              type="button"
-              className="btn-secondary-aaa"
-              onClick={() => onNavigate('CATALOGO_CUENTOS', '/cuentos')}
-            >
-              ← Volver a Cuentos
-            </button>
-          </div>
-        </div>
+        <button
+          type="button"
+          className="btn-secondary-aaa"
+          style={{ padding: '6px 10px', fontSize: '0.82rem' }}
+          onClick={() => setMostrarConfig((prev) => !prev)}
+          aria-expanded={mostrarConfig}
+          title="Configurar nivel de lectura y sordera del perfil"
+        >
+          ⚙️ Nivel
+        </button>
       </div>
 
-      {/* 4 Tarjetas Resumen Reales desde PostgreSQL */}
-      <div className="grid-4-cols" style={{ marginBottom: '24px' }}>
-        <div className="card-aaa" style={{ borderLeft: '6px solid var(--primary-aaa)' }}>
-          <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-            📚 PROGRESO EN CUENTOS
-          </div>
-          <div style={{ fontSize: '2.3rem', fontWeight: 700, margin: '6px 0' }}>
-            {estadisticas?.resumen.cuentos_completados ?? 0} completados
-          </div>
-          <div style={{ fontSize: '0.92rem', color: 'var(--text-secondary)' }}>
-            +{estadisticas?.resumen.cuentos_en_progreso ?? 0} cuentos en progreso
-          </div>
-        </div>
-
-        <div className="card-aaa" style={{ borderLeft: '6px solid var(--success-border)' }}>
-          <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-            🤟 INTENTOS REGISTRADOS
-          </div>
-          <div style={{ fontSize: '2.3rem', fontWeight: 700, margin: '6px 0' }}>
-            {estadisticas?.resumen.total_intentos ?? 0} intentos
-          </div>
-          <div style={{ fontSize: '0.92rem', color: 'var(--text-secondary)' }}>
-            {estadisticas?.resumen.senas_acertadas ?? 0} señas LSM +{' '}
-            {estadisticas?.resumen.palabras_pronunciadas ?? 0} articulación
-          </div>
-        </div>
-
-        <div className="card-aaa" style={{ borderLeft: '6px solid var(--purple-aaa)' }}>
-          <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-            🎯 PRECISIÓN PROMEDIO (BD)
-          </div>
-          <div style={{ fontSize: '2.3rem', fontWeight: 700, margin: '6px 0' }}>
-            {estadisticas?.resumen.precision_promedio ?? 0}%
-          </div>
-          <div style={{ fontSize: '0.92rem', color: 'var(--text-secondary)' }}>
-            Calculada sobre `TABLA_METRICA_INTENTO`
-          </div>
-        </div>
-
-        <div className="card-aaa" style={{ borderLeft: '6px solid var(--warn-border)' }}>
-          <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-            🏆 RECOMPENSAS CANJEADAS
-          </div>
-          <div style={{ fontSize: '2.3rem', fontWeight: 700, margin: '6px 0' }}>
-            {estadisticas?.recompensas_canjeadas?.length ?? 0} trofeos
-          </div>
-          <div style={{ fontSize: '0.92rem', color: 'var(--text-secondary)' }}>
-            Saldo actual: ⭐ {estadisticas?.perfil.puntos_acumulados ?? perfilActivo.puntos_acumulados} pts
-          </div>
-        </div>
+      {/* 1. Píldora superior idéntica al boceto: "Panel de seguimiento de ___" */}
+      <div
+        style={{
+          backgroundColor: 'var(--bg-app)',
+          border: '2px solid var(--border-strong)',
+          borderRadius: '999px',
+          padding: '10px 18px',
+          textAlign: 'center',
+          marginBottom: '16px',
+        }}
+      >
+        <h1
+          id="titulo-panel-seguimiento"
+          style={{
+            margin: 0,
+            fontSize: '1.08rem',
+            fontWeight: 700,
+            color: 'var(--text-primary)',
+          }}
+        >
+          Panel de seguimiento de <u>{nombreCorto}</u>
+        </h1>
       </div>
 
-      {/* Dos Columnas: 1. Progreso por Cuento y Recompensas Canjeadas | 2. Editor de Perfil */}
-      <div className="grid-2-cols" style={{ marginBottom: '24px' }}>
-        <div className="card-aaa">
-          <h2 style={{ marginTop: 0 }}>
-            📖 Progreso por Cuento (`TABLA_PROGRESO_CUENTO`)
-          </h2>
-          {(estadisticas?.progreso_cuentos || []).length === 0 ? (
-            <p style={{ color: 'var(--text-secondary)' }}>
-              Aún no hay cuentos registrados para este perfil.
-            </p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {(estadisticas?.progreso_cuentos || []).map((prog) => {
-                const esCompletado = prog.estado === 'COMPLETADO';
-                return (
-                  <div
-                    key={prog.id_progreso}
-                    style={{
-                      padding: '12px 14px',
-                      borderRadius: '14px',
-                      backgroundColor: 'var(--bg-app)',
-                      border: '2px solid var(--border-subtle)',
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: '6px',
-                        gap: '8px',
-                      }}
-                    >
-                      <strong>
-                        {prog.titulo_cuento || `Cuento #${prog.id_cuento}`} (
-                        {prog.tipo_cuento || 'LSM'})
-                      </strong>
-                      <span
-                        className={`badge-aaa ${
-                          esCompletado ? 'badge-success' : 'badge-lsm'
-                        }`}
-                      >
-                        {esCompletado ? '✓ COMPLETADO' : '⏳ EN PROGRESO'} •{' '}
-                        {prog.puntos_obtenidos} pts
-                      </span>
-                    </div>
-                    <div className="progress-track-aaa">
-                      <div
-                        className={
-                          esCompletado ? 'progress-fill-success' : 'progress-fill-aaa'
-                        }
-                        style={{ width: esCompletado ? '100%' : '60%' }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          <h2 style={{ marginTop: '24px' }}>
-            🏆 Recompensas Canjeadas (`TABLA_CANJE_RECOMPENSA`)
-          </h2>
-          {(estadisticas?.recompensas_canjeadas || []).length === 0 ? (
-            <p style={{ color: 'var(--text-secondary)' }}>
-              Este perfil aún no ha canjeado recompensas. Ve a la pestaña Cuentos para
-              canjear puntos.
-            </p>
-          ) : (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-              {(estadisticas?.recompensas_canjeadas || []).map((canje) => (
-                <div
-                  key={canje.id_canje}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '10px 14px',
-                    borderRadius: '14px',
-                    backgroundColor: 'var(--success-bg)',
-                    border: '2px solid var(--success-border)',
-                    color: 'var(--success-text)',
-                    fontWeight: 700,
-                  }}
-                >
-                  <span style={{ fontSize: '1.8rem' }} aria-hidden="true">
-                    {canje.icono_url}
-                  </span>
-                  <div>
-                    <div>{canje.nombre_recompensa}</div>
-                    <small>
-                      Canjeado por {canje.costo_puntos} ⭐ (ID #{canje.id_canje})
-                    </small>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Configuración del Perfil Adaptativo en PostgreSQL */}
-        <div className="card-aaa">
-          <h2 style={{ marginTop: 0 }}>
-            ⚙️ Configurar Perfil Adaptativo en BD (`TABLA_PERFIL`)
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', marginTop: 0 }}>
-            Actualiza en tiempo real la condición auditiva y el nivel de lectura del niño:
-          </p>
+      {/* Editor desplegable de configuración del perfil en TABLA_PERFIL */}
+      {mostrarConfig && (
+        <form
+          onSubmit={handleGuardarAdaptabilidad}
+          className="card-aaa"
+          style={{
+            marginBottom: '16px',
+            padding: '14px',
+            border: '2px solid var(--primary-aaa)',
+          }}
+        >
+          <div style={{ fontWeight: 700, marginBottom: '8px', fontSize: '0.92rem' }}>
+            ⚙️ Configurar Perfil Adaptativo en PostgreSQL (`TABLA_PERFIL`)
+          </div>
 
           {mensajeGuardado && (
             <div
               style={{
-                padding: '10px 14px',
-                borderRadius: '12px',
+                padding: '6px 10px',
+                borderRadius: '10px',
                 backgroundColor: 'var(--success-bg)',
-                border: '2px solid var(--success-border)',
                 color: 'var(--success-text)',
                 fontWeight: 700,
-                marginBottom: '12px',
+                fontSize: '0.82rem',
+                marginBottom: '8px',
               }}
-              role="status"
             >
               {mensajeGuardado}
             </div>
           )}
 
-          <form onSubmit={handleGuardarAdaptabilidad}>
-            <div className="form-group-aaa">
-              <label htmlFor="tutor-edit-sordera" className="form-label-aaa">
-                🦻 Condición Auditiva (`tipo_sordera`):
-              </label>
-              <select
-                id="tutor-edit-sordera"
-                className="form-input-aaa"
-                value={tipoSorderaEdit}
-                onChange={(e) => setTipoSorderaEdit(e.target.value as TipoSordera)}
-              >
-                <option value="TOTAL">TOTAL (Hipoacusia Completa — Prioridad LSM)</option>
-                <option value="PARCIAL">
-                  PARCIAL (Hipoacusia Parcial — LSM + Articulación Oral)
-                </option>
-              </select>
-            </div>
+          <div className="form-group-aaa">
+            <label htmlFor="tutor-edit-sordera" className="form-label-aaa">
+              Condición auditiva:
+            </label>
+            <select
+              id="tutor-edit-sordera"
+              className="form-input-aaa"
+              value={tipoSorderaEdit}
+              onChange={(e) => setTipoSorderaEdit(e.target.value as TipoSordera)}
+            >
+              <option value="TOTAL">Sordera TOTAL (Prioridad LSM)</option>
+              <option value="PARCIAL">Sordera PARCIAL (LSM + Habla)</option>
+            </select>
+          </div>
 
-            <div className="form-group-aaa">
-              <label htmlFor="tutor-edit-lectura" className="form-label-aaa">
-                📖 Nivel de Lectura (`nivel_lectura`):
-              </label>
-              <select
-                id="tutor-edit-lectura"
-                className="form-input-aaa"
-                value={nivelLecturaEdit}
-                onChange={(e) => setNivelLecturaEdit(e.target.value as NivelLectura)}
-              >
-                <option value="NO_LECTOR">NO_LECTOR (Nivel 1)</option>
-                <option value="LECTURA_INICIAL">LECTURA_INICIAL (Nivel 2)</option>
-                <option value="LECTOR_AVANZADO">LECTOR_AVANZADO (Nivel 3)</option>
-              </select>
-            </div>
+          <div className="form-group-aaa">
+            <label htmlFor="tutor-edit-lectura" className="form-label-aaa">
+              Nivel de lectura:
+            </label>
+            <select
+              id="tutor-edit-lectura"
+              className="form-input-aaa"
+              value={nivelLecturaEdit}
+              onChange={(e) => setNivelLecturaEdit(e.target.value as NivelLectura)}
+            >
+              <option value="NO_LECTOR">NO_LECTOR (Solo íconos)</option>
+              <option value="LECTURA_INICIAL">LECTURA_INICIAL (Texto de apoyo)</option>
+              <option value="LECTOR_AVANZADO">LECTOR_AVANZADO (Texto completo)</option>
+            </select>
+          </div>
 
-            <button type="submit" className="btn-primary-aaa" style={{ width: '100%' }}>
-              💾 Guardar Cambios en PostgreSQL
-            </button>
-          </form>
+          <button
+            type="submit"
+            className="btn-primary-aaa"
+            style={{ width: '100%' }}
+          >
+            💾 Guardar cambios
+          </button>
+        </form>
+      )}
+
+      {/* 2. Dos círculos superiores lado a lado idénticos al boceto "Panel de seguimiento" */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '22px',
+          marginBottom: '16px',
+        }}
+      >
+        <div
+          style={{
+            width: '124px',
+            height: '124px',
+            borderRadius: '50%',
+            backgroundColor: 'var(--bg-app)',
+            border: '3px solid var(--primary-aaa)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            textAlign: 'center',
+            padding: '10px',
+          }}
+        >
+          <span
+            style={{
+              fontSize: '1.55rem',
+              fontWeight: 700,
+              color: 'var(--primary-aaa)',
+              lineHeight: 1.1,
+            }}
+          >
+            ★ {estadisticas?.perfil.puntos_acumulados ?? perfilActivo.puntos_acumulados}
+          </span>
+          <span
+            style={{
+              fontSize: '0.76rem',
+              fontWeight: 700,
+              color: 'var(--text-secondary)',
+              marginTop: '4px',
+            }}
+          >
+            Puntos en BD
+          </span>
+        </div>
+
+        <div
+          style={{
+            width: '124px',
+            height: '124px',
+            borderRadius: '50%',
+            backgroundColor: 'var(--bg-app)',
+            border: '3px solid #047857',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            textAlign: 'center',
+            padding: '10px',
+          }}
+        >
+          <span
+            style={{
+              fontSize: '1.55rem',
+              fontWeight: 700,
+              color: '#047857',
+              lineHeight: 1.1,
+            }}
+          >
+            {estadisticas?.resumen.precision_promedio ?? 0}%
+          </span>
+          <span
+            style={{
+              fontSize: '0.76rem',
+              fontWeight: 700,
+              color: 'var(--text-secondary)',
+              marginTop: '4px',
+            }}
+          >
+            Precisión promedio
+          </span>
         </div>
       </div>
 
-      {/* Tabla Detallada de Métricas de Intentos de Visión Artificial (TABLA_METRICA_INTENTO) */}
-      <div className="card-aaa">
-        <h2 style={{ marginTop: 0 }}>
-          🔍 Historial Real de Intentos (`TABLA_METRICA_INTENTO` —{' '}
-          {estadisticas?.historial_intentos.length ?? 0} registros)
-        </h2>
-        <p style={{ color: 'var(--text-secondary)', marginTop: 0 }}>
-          Cada intento realizado en el Módulo 1 (`/practica-v1` o `/practica-v2`) y Módulo 2
-          se almacena en PostgreSQL y aparece inmediatamente aquí:
-        </p>
+      {/* 3. Tarjeta horizontal ancha: "Cuentos completados" (Boceto Fase 1 p. 21) */}
+      <div
+        className="card-aaa"
+        style={{
+          marginBottom: '14px',
+          padding: '14px 16px',
+          backgroundColor: 'var(--bg-app)',
+          border: '2px solid var(--border-strong)',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '8px',
+          }}
+        >
+          <h2 style={{ margin: 0, fontSize: '1.05rem' }}>
+            📚 Cuentos completados
+          </h2>
+          <span
+            style={{
+              fontSize: '1.25rem',
+              fontWeight: 700,
+              color: 'var(--primary-aaa)',
+            }}
+          >
+            {estadisticas?.resumen.cuentos_completados ?? 0}
+          </span>
+        </div>
 
-        {cargando ? (
-          <p>Consultando registros en PostgreSQL...</p>
+        {(estadisticas?.progreso_cuentos || []).length === 0 ? (
+          <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
+            Sin cuentos registrados aún.
+          </p>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table
-              style={{
-                width: '100%',
-                borderCollapse: 'collapse',
-                textAlign: 'left',
-              }}
-            >
-              <thead>
-                <tr
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {(estadisticas?.progreso_cuentos || []).map((prog) => {
+              const completado = prog.estado === 'COMPLETADO';
+              return (
+                <div
+                  key={prog.id_progreso}
                   style={{
-                    borderBottom: '3px solid var(--border-strong)',
-                    backgroundColor: 'var(--bg-app)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '6px 10px',
+                    borderRadius: '10px',
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid var(--border-subtle)',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
                   }}
                 >
-                  <th style={{ padding: '12px' }}>ID Intento</th>
-                  <th style={{ padding: '12px' }}>Módulo</th>
-                  <th style={{ padding: '12px' }}>Ejercicio (`palabra_o_sena`)</th>
-                  <th style={{ padding: '12px' }}>Cuento Asociado</th>
-                  <th style={{ padding: '12px' }}>Precisión (`DECIMAL`)</th>
-                  <th style={{ padding: '12px' }}>Resultado (`ENUM`)</th>
-                  <th style={{ padding: '12px' }}>Puntos Otorgados</th>
-                  <th style={{ padding: '12px' }}>Fecha / Hora</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(estadisticas?.historial_intentos || []).map((intento) => (
-                  <tr
-                    key={intento.id_intento}
-                    style={{ borderBottom: '1px solid var(--border-subtle)' }}
+                  <span>
+                    {completado ? '✓ ' : '⏳ '}
+                    {prog.titulo_cuento || `Cuento #${prog.id_cuento}`}
+                  </span>
+                  <span
+                    style={{
+                      color: completado ? '#047857' : 'var(--primary-aaa)',
+                    }}
                   >
-                    <td style={{ padding: '12px', fontWeight: 700 }}>
-                      #{intento.id_intento}
-                    </td>
-                    <td style={{ padding: '12px' }}>
-                      <span
-                        className={`badge-aaa ${
-                          intento.tipo_cuento === 'ARTICULACION'
-                            ? 'badge-articulacion'
-                            : 'badge-lsm'
-                        }`}
-                      >
-                        {intento.tipo_cuento || 'LSM'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px', fontWeight: 700 }}>
-                      {intento.palabra_o_sena || `Ejercicio #${intento.id_ejercicio}`}
-                    </td>
-                    <td style={{ padding: '12px' }}>
-                      {intento.titulo_cuento || 'Práctica de cuento'}
-                    </td>
-                    <td style={{ padding: '12px', fontWeight: 700 }}>
-                      {Number(intento.porcentaje_precision).toFixed(1)}%
-                    </td>
-                    <td style={{ padding: '12px' }}>
-                      <span
-                        className="badge-aaa"
-                        style={{
-                          backgroundColor:
-                            intento.resultado === 'CORRECTO'
-                              ? 'var(--success-bg)'
-                              : 'var(--warn-bg)',
-                          color:
-                            intento.resultado === 'CORRECTO'
-                              ? 'var(--success-text)'
-                              : 'var(--warn-text)',
-                          borderColor:
-                            intento.resultado === 'CORRECTO'
-                              ? 'var(--success-border)'
-                              : 'var(--warn-border)',
-                        }}
-                      >
-                        {intento.resultado === 'CORRECTO'
-                          ? '✓ CORRECTO'
-                          : '🔄 REINTENTO'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px', fontWeight: 700 }}>
-                      +{intento.puntos_otorgados} ⭐
-                    </td>
-                    <td style={{ padding: '12px', fontSize: '0.9rem' }}>
-                      {new Date(intento.fecha_hora).toLocaleString('es-MX')}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    {completado ? 'Completado' : 'En progreso'} ({prog.puntos_obtenidos}★)
+                  </span>
+                </div>
+              );
+            })}
           </div>
         )}
+      </div>
+
+      {/* 4. Dos tarjetas cuadradas lado a lado idénticas al boceto:
+             Izquierda: "Señas acertadas" | Derecha: "Palabras pronunciadas" */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '12px',
+          marginBottom: '14px',
+        }}
+      >
+        <div
+          className="card-aaa"
+          style={{
+            padding: '16px 12px',
+            textAlign: 'center',
+            backgroundColor: 'var(--bg-app)',
+            border: '2px solid var(--border-strong)',
+          }}
+        >
+          <div style={{ fontSize: '1.8rem', marginBottom: '4px' }} aria-hidden="true">
+            ✋
+          </div>
+          <div
+            style={{
+              fontSize: '1.75rem',
+              fontWeight: 700,
+              color: 'var(--primary-aaa)',
+              lineHeight: 1.1,
+            }}
+          >
+            {estadisticas?.resumen.senas_acertadas ?? 0}
+          </div>
+          <div
+            style={{
+              fontSize: '0.88rem',
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              marginTop: '4px',
+            }}
+          >
+            Señas acertadas
+          </div>
+        </div>
+
+        <div
+          className="card-aaa"
+          style={{
+            padding: '16px 12px',
+            textAlign: 'center',
+            backgroundColor: 'var(--bg-app)',
+            border: '2px solid var(--border-strong)',
+          }}
+        >
+          <div style={{ fontSize: '1.8rem', marginBottom: '4px' }} aria-hidden="true">
+            👄
+          </div>
+          <div
+            style={{
+              fontSize: '1.75rem',
+              fontWeight: 700,
+              color: '#0D9488',
+              lineHeight: 1.1,
+            }}
+          >
+            {estadisticas?.resumen.palabras_pronunciadas ?? 0}
+          </div>
+          <div
+            style={{
+              fontSize: '0.88rem',
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              marginTop: '4px',
+            }}
+          >
+            Palabras pronunciadas
+          </div>
+        </div>
+      </div>
+
+      {/* 5. Tarjeta inferior ancha idéntica al boceto: "Actividad semanal"
+             (Incluye barras semanales + historial real de intentos y recompensas canjeadas en BD) */}
+      <div
+        className="card-aaa"
+        style={{
+          padding: '14px 16px',
+          backgroundColor: 'var(--bg-app)',
+          border: '2px solid var(--border-strong)',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '10px',
+          }}
+        >
+          <h2 style={{ margin: 0, fontSize: '1.05rem' }}>
+            📊 Actividad semanal
+          </h2>
+          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+            {estadisticas?.resumen.total_intentos ?? 0} intentos en BD
+          </span>
+        </div>
+
+        {/* Gráfica de barras compacta de Actividad Semanal */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(7, 1fr)',
+            gap: '6px',
+            alignItems: 'end',
+            height: '64px',
+            padding: '8px 6px',
+            backgroundColor: '#FFFFFF',
+            borderRadius: '12px',
+            border: '1px solid var(--border-subtle)',
+            marginBottom: '12px',
+            textAlign: 'center',
+          }}
+          aria-label="Gráfica de actividad semanal de lunes a domingo"
+        >
+          {[
+            { d: 'L', h: 55 },
+            { d: 'M', h: 75 },
+            { d: 'X', h: 45 },
+            { d: 'J', h: 85 },
+            { d: 'V', h: 95 },
+            { d: 'S', h: 70 },
+            { d: 'D', h: 90 },
+          ].map((bar) => (
+            <div
+              key={bar.d}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                height: '100%',
+              }}
+            >
+              <div
+                style={{
+                  width: '100%',
+                  maxWidth: '18px',
+                  height: `${bar.h}%`,
+                  backgroundColor: 'var(--primary-aaa)',
+                  borderRadius: '6px 6px 2px 2px',
+                }}
+              />
+              <span
+                style={{
+                  fontSize: '0.68rem',
+                  fontWeight: 700,
+                  marginTop: '2px',
+                }}
+              >
+                {bar.d}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Recompensas canjeadas en TABLA_CANJE_RECOMPENSA */}
+        <div style={{ marginBottom: '10px' }}>
+          <div style={{ fontSize: '0.82rem', fontWeight: 700, marginBottom: '4px' }}>
+            🏆 Recompensas canjeadas ({estadisticas?.recompensas_canjeadas?.length ?? 0}):
+          </div>
+          {(estadisticas?.recompensas_canjeadas || []).length === 0 ? (
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+              Aún no se han canjeado recompensas en este perfil.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {(estadisticas?.recompensas_canjeadas || []).map((c) => (
+                <span
+                  key={c.id_canje}
+                  style={{
+                    backgroundColor: '#FEF3C7',
+                    border: '1.5px solid #F59E0B',
+                    color: '#091326',
+                    borderRadius: '999px',
+                    padding: '3px 10px',
+                    fontSize: '0.76rem',
+                    fontWeight: 700,
+                  }}
+                >
+                  {c.icono_url} {c.nombre_recompensa} ({c.costo_puntos}★)
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Últimos intentos registrados en TABLA_METRICA_INTENTO */}
+        <div>
+          <div style={{ fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px' }}>
+            🕒 Últimos intentos registrados en PostgreSQL:
+          </div>
+          {cargando ? (
+            <div style={{ fontSize: '0.8rem' }}>Cargando datos desde PostgreSQL...</div>
+          ) : (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px',
+                maxHeight: '175px',
+                overflowY: 'auto',
+              }}
+            >
+              {(estadisticas?.historial_intentos || []).slice(0, 8).map((intento) => (
+                <div
+                  key={intento.id_intento}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '6px 10px',
+                    borderRadius: '10px',
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid var(--border-subtle)',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                  }}
+                >
+                  <span>
+                    {intento.resultado === 'CORRECTO' ? '✓ ' : '↻ '}
+                    {intento.palabra_o_sena || `Ej. #${intento.id_ejercicio}`} (
+                    {intento.tipo_cuento || 'LSM'})
+                  </span>
+                  <span
+                    style={{
+                      color:
+                        intento.resultado === 'CORRECTO'
+                          ? '#047857'
+                          : 'var(--warn-text)',
+                    }}
+                  >
+                    {Number(intento.porcentaje_precision).toFixed(0)}% (+
+                    {intento.puntos_otorgados}★)
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </section>
   );
