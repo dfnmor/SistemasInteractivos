@@ -394,3 +394,4 @@ export const PracticaSenaV1View: React.FC<PracticaSenaV1ViewProps> = ({
     </section>
   );
 };
+

@@ -12,7 +12,7 @@ interface ModuloArticulacionViewProps {
     mensaje: string;
     icono: string;
   }>;
-  onNavigate: (vista: VistaActiva) => void;
+  onNavigate: (vista: VistaActiva, path?: string) => void;
 }
 
 interface FonemaArticulacionItem {

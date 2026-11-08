@@ -536,6 +536,92 @@ button:active {
   font-weight: 600;
 }
 
+/* =============================================================================
+ * MEJORAS DIX09 (FASE 2 - PRÁCTICA DE SEÑA V2)
+ * - Cuenta regresiva visual 3-2-1 sin sonido
+ * - Marco animado alrededor del contorno guía al detectar al niño (< 2Hz WCAG 2.3.1)
+ * - Cámara lenta 0.5x automática en reintentos ("¡Casi! Intenta otra vez")
+ * ============================================================================= */
+@keyframes dix09-gentle-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.65), inset 0 0 18px rgba(52, 211, 153, 0.35);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(52, 211, 153, 0), inset 0 0 28px rgba(52, 211, 153, 0.55);
+    transform: scale(1.01);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0), inset 0 0 18px rgba(52, 211, 153, 0.35);
+    transform: scale(1);
+  }
+}
+
+@keyframes dix09-slowmo-demo {
+  0% {
+    transform: translateY(0px) rotate(0deg) scale(1);
+  }
+  50% {
+    transform: translateY(-8px) rotate(-8deg) scale(1.08);
+  }
+  100% {
+    transform: translateY(0px) rotate(0deg) scale(1);
+  }
+}
+
+.dix09-contour-waiting {
+  position: absolute;
+  inset: 20px;
+  border: 4px dashed #38BDF8;
+  border-radius: 22px;
+  background-color: rgba(15, 23, 42, 0.45);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px;
+  pointer-events: none;
+  transition: all 0.35s ease;
+}
+
+.dix09-contour-detected {
+  position: absolute;
+  inset: 20px;
+  border: 5px solid #34D399;
+  border-radius: 22px;
+  background-color: rgba(6, 78, 59, 0.22);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px;
+  pointer-events: none;
+  animation: dix09-gentle-pulse 1.8s infinite ease-in-out;
+  transition: all 0.35s ease;
+}
+
+.dix09-countdown-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background-color: rgba(9, 19, 38, 0.92);
+  color: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+}
+
+.dix09-reference-playing-normal {
+  animation: dix09-slowmo-demo 1.1s infinite ease-in-out;
+}
+
+.dix09-reference-playing-slow {
+  animation: dix09-slowmo-demo 2.4s infinite ease-in-out;
+}
+
 @media (max-width: 768px) {
   .bottom-nav-aaa {
     gap: 8px;

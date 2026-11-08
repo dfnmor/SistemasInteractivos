@@ -202,3 +202,4 @@ INSERT INTO TABLA_CANJE_RECOMPENSA (id_perfil, id_recompensa, fecha_canje) VALUE
 (1, 1, CURRENT_TIMESTAMP - INTERVAL '1 day');
 
 COMMIT;
+
