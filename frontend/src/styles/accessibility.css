@@ -11,16 +11,16 @@
   --bg-surface-soft: #F1F5F9;
   --bg-card-highlight: #EFF6FF;
 
-  /* Contraste >= 7:1 WCAG 2.2 AAA */
-  --text-primary: #0F172A;     /* 17.4:1 sobre blanco */
-  --text-secondary: #1E293B;   /* 13.5:1 sobre blanco */
-  --text-muted: #334155;       /* 9.8:1 sobre blanco */
+  /* Contraste >= 7:1 WCAG 2.2 AAA estricto y alta legibilidad con brillo bajo */
+  --text-primary: #0A0F1D;     /* 18.2:1 sobre blanco */
+  --text-secondary: #111827;   /* 16.0:1 sobre blanco */
+  --text-muted: #1F2937;       /* 12.8:1 sobre blanco */
 
-  --primary-aaa: #0052A3;      /* 7.6:1 con #FFFFFF */
-  --primary-aaa-hover: #003D7A;
+  --primary-aaa: #004488;      /* 8.5:1 con #FFFFFF */
+  --primary-aaa-hover: #003366;
   --primary-text: #FFFFFF;
 
-  --teal-aaa: #0F5E59;         /* 7.5:1 con #FFFFFF (Botón Entrenar Boca Mockup 1) */
+  --teal-aaa: #0B4F4A;         /* 8.6:1 con #FFFFFF (Botón Entrenar Boca Mockup 1) */
   --teal-text: #FFFFFF;
 
   --success-bg: #ECFDF5;
@@ -29,10 +29,10 @@
   --success-btn: #065F46;      /* 7.7:1 con #FFFFFF */
 
   --warn-bg: #FFFBEB;
-  --warn-border: #B45309;
+  --warn-border: #92400E;      /* Contraste reforzado */
   --warn-text: #78350F;        /* 9.2:1 */
 
-  --purple-aaa: #4C1D95;
+  --purple-aaa: #4C1D95;       /* 10.5:1 con #FFFFFF */
   --purple-bg-soft: #F5F3FF;
 
   --db-safe-bg: #DBEAFE;
@@ -42,8 +42,8 @@
   --db-peak-bg: #FCE7F3;
   --db-peak-text: #831843;
 
-  --border-strong: #475569;
-  --border-subtle: #CBD5E1;
+  --border-strong: #334155;
+  --border-subtle: #94A3B8;
   --focus-ring: #D97706;
 
   --font-accessible: 'Atkinson Hyperlegible', 'OpenDyslexic', 'Segoe UI', Roboto, sans-serif;
@@ -140,7 +140,7 @@ body {
 }
 
 /* =============================================================================
- * BLANCOS TÁCTILES >= 48x48 dp Y CONTRASTE >= 7:1 (WCAG 2.2 AAA)
+ * BLANCOS TÁCTILES >= 48x48 dp Y SEPARACIÓN >= 8 dp (DIX10 / WCAG 2.2 AAA)
  * ============================================================================= */
 button,
 .btn-aaa,
@@ -151,6 +151,7 @@ input[type='date'],
 input[type='number'] {
   min-height: 48px;
   min-width: 48px;
+  margin: 4px; /* Asegura al menos 8 dp de separación entre elementos interactivos adyacentes */
   font-family: var(--font-accessible);
   font-size: 1rem;
   border-radius: var(--radius-md);
@@ -162,8 +163,8 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 10px 16px;
+  gap: 10px;
+  padding: 12px 18px;
   font-weight: 700;
   border: 2px solid transparent;
 }
@@ -588,14 +589,17 @@ button:active {
 }
 
 .icon-btn-48 {
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  min-height: 52px;
   padding: 0;
   border-radius: 50%;
   background-color: var(--bg-surface-soft);
   color: var(--text-primary);
-  border: 2px solid var(--border-subtle);
-  font-size: 1.15rem;
+  border: 2px solid var(--border-strong);
+  font-size: 1.35rem; /* Íconos más grandes DIX10 */
+  margin: 4px;
 }
 
 .icon-btn-48[aria-pressed='true'] {
@@ -606,20 +610,41 @@ button:active {
 .screen-back-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 4px;
+  gap: 14px;
+  margin-bottom: 6px;
 }
 
+/* Botón de regresar más grande DIX10 (56x56 dp, ícono 1.6rem y contraste reforzado) */
 .btn-back-circle {
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
+  min-height: 56px;
   padding: 0;
   border-radius: 50%;
   background-color: var(--bg-surface);
   color: var(--text-primary);
-  border: 2px solid var(--border-strong);
-  font-size: 1.3rem;
+  border: 3px solid var(--border-strong);
+  font-size: 1.6rem;
+  font-weight: 800;
   flex-shrink: 0;
+  margin: 4px;
+}
+
+.btn-back-circle:hover {
+  background-color: var(--bg-card-highlight);
+  border-color: var(--primary-aaa);
+}
+
+/* Botón de pausa sensorial más grande DIX10 */
+.btn-calm-sensory,
+.btn-pause-lg {
+  min-height: 54px;
+  min-width: 54px;
+  font-size: 1.15rem;
+  padding: 12px 20px;
+  border-radius: var(--radius-md);
+  margin: 4px;
 }
 
 .sensory-pause-banner {

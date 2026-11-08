@@ -93,14 +93,15 @@ export async function fetchCuentos(params?: {
 export async function guardarProgresoCuento(
   id_cuento: number,
   id_perfil: number,
-  puntos_obtenidos = 30
+  puntos_obtenidos = 30,
+  estado: 'EN_PROGRESO' | 'COMPLETADO' = 'COMPLETADO'
 ): Promise<void> {
   const res = await fetch(`${API_BASE}/cuentos/${id_cuento}/progreso`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       id_perfil,
-      estado: 'COMPLETADO',
+      estado,
       puntos_obtenidos,
     }),
   });

@@ -24,6 +24,7 @@ interface CatalogoCuentosViewProps {
   cuentos: Cuento[];
   onNavigate: (vista: VistaActiva, path?: string) => void;
   onCompletarCuento: (id_cuento: number) => Promise<void>;
+  onGuardarProgresoParcial?: (id_cuento: number, puntos?: number) => Promise<void>;
   onPracticarEjercicio: (
     tipo: TipoCuento,
     palabra: string,
@@ -55,6 +56,7 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
   cuentos,
   onNavigate,
   onCompletarCuento,
+  onGuardarProgresoParcial,
   onPracticarEjercicio,
 }) => {
   const esNoLector = perfilActivo.nivel_lectura === 'NO_LECTOR';
@@ -63,9 +65,50 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
   const [escena, setEscena] = useState(0);
   const [guardando, setGuardando] = useState(false);
 
+  const LOCAL_STORAGE_KEY = `meexuu_progreso_cuento_${perfilActivo.id_perfil}`;
+
+  const abrirCuentoConReanudacion = (cuento: Cuento) => {
+    setCuentoAbierto(cuento);
+    try {
+      const guardado = localStorage.getItem(`${LOCAL_STORAGE_KEY}_${cuento.id_cuento}`);
+      if (guardado) {
+        const parsed = JSON.parse(guardado);
+        const escenaGuardada = Number(parsed.escena) || 0;
+        const totalEj = cuento.ejercicios?.length || 1;
+        setEscena(escenaGuardada < totalEj ? escenaGuardada : 0);
+      } else {
+        setEscena(0);
+      }
+    } catch {
+      setEscena(0);
+    }
+  };
+
   const cerrarCuento = () => {
     setCuentoAbierto(null);
     setEscena(0);
+  };
+
+  const handleCambiarEscena = (nuevaEscena: number) => {
+    setEscena(nuevaEscena);
+    if (!cuentoAbierto) return;
+    try {
+      localStorage.setItem(
+        `${LOCAL_STORAGE_KEY}_${cuentoAbierto.id_cuento}`,
+        JSON.stringify({
+          id_cuento: cuentoAbierto.id_cuento,
+          id_perfil: perfilActivo.id_perfil,
+          escena: nuevaEscena,
+          fecha: new Date().toISOString(),
+        })
+      );
+    } catch {
+      // Ignorar fallo de almacenamiento
+    }
+
+    if (onGuardarProgresoParcial) {
+      onGuardarProgresoParcial(cuentoAbierto.id_cuento, 15).catch(() => {});
+    }
   };
 
   // ---------------------------------------------------------------------------
@@ -161,16 +204,18 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <button
             type="button"
-            onClick={() => setEscena((e) => (e + 1 < total ? e + 1 : 0))}
-            aria-label="Siguiente escena"
+            onClick={() => handleCambiarEscena(escena + 1 < total ? escena + 1 : 0)}
+            aria-label="Siguiente escena del cuento"
             style={{
-              width: '56px',
-              height: '56px',
+              width: '64px',
+              height: '64px',
+              minWidth: '64px',
+              minHeight: '64px',
               borderRadius: '50%',
-              backgroundColor: '#1E293B',
+              backgroundColor: '#0F172A',
               color: '#FFFFFF',
-              border: '3px solid #0F172A',
-              fontSize: '1.3rem',
+              border: '3px solid #004488',
+              fontSize: '1.5rem',
               padding: 0,
               flexShrink: 0,
             }}
@@ -178,11 +223,24 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
             ▶
           </button>
           <div style={{ flex: 1 }}>
-            <div className="progress-track-aaa" style={{ height: '12px' }}>
+            <div className="progress-track-aaa" style={{ height: '14px' }}>
               <div
                 className="progress-fill-aaa"
                 style={{ width: `${avance}%` }}
               />
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                marginTop: '4px',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                color: 'var(--text-secondary)',
+              }}
+            >
+              <span>Escena {escena + 1} de {total}</span>
+              <span>💾 Progreso guardado automáticamente</span>
             </div>
           </div>
         </div>
@@ -219,6 +277,9 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
             onClick={async () => {
               setGuardando(true);
               try {
+                try {
+                  localStorage.removeItem(`${LOCAL_STORAGE_KEY}_${cuentoAbierto.id_cuento}`);
+                } catch {}
                 await onCompletarCuento(cuentoAbierto.id_cuento);
                 cerrarCuento();
               } finally {
@@ -439,12 +500,11 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
                 className="btn-primary-aaa"
                 style={{ width: '100%', marginTop: '4px' }}
                 onClick={() => {
-                  setEscena(0);
-                  setCuentoAbierto(cuento);
+                  abrirCuentoConReanudacion(cuento);
                 }}
               >
                 <span aria-hidden="true">▶</span>
-                <span>Abrir Cuento</span>
+                <span>{enProgreso ? 'Continuar Cuento (Reanudar)' : 'Abrir Cuento'}</span>
               </button>
             </article>
           );

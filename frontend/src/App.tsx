@@ -174,7 +174,20 @@ export const App: React.FC = () => {
   };
 
   const handleCompletarCuento = async (idCuento: number) => {
-    await guardarProgresoCuento(idCuento, perfilActivo.id_perfil, 30);
+    await guardarProgresoCuento(idCuento, perfilActivo.id_perfil, 30, 'COMPLETADO');
+    await cargarDatosPerfil(perfilActivo.id_perfil);
+  };
+
+  const handleActualizarProgresoParcial = async (
+    idCuento: number,
+    puntosEstimados = 15
+  ) => {
+    await guardarProgresoCuento(
+      idCuento,
+      perfilActivo.id_perfil,
+      puntosEstimados,
+      'EN_PROGRESO'
+    );
     await cargarDatosPerfil(perfilActivo.id_perfil);
   };
 
@@ -353,6 +366,7 @@ export const App: React.FC = () => {
               cuentos={cuentos}
               onNavigate={handleNavigate}
               onCompletarCuento={handleCompletarCuento}
+              onGuardarProgresoParcial={handleActualizarProgresoParcial}
               onPracticarEjercicio={handlePracticarEjercicio}
             />
           )}
