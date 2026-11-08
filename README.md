@@ -1,4 +1,4 @@
-# 🤟🏽 Señas y Sonrisas — Plataforma Interactiva de LSM y Articulación Oral
+# 🤟🏽 Plataforma Interactiva de LSM y Articulación Oral
 
 > **Clave del Sistema:** `TSI-2026-MEEXUU`  
 > **Marco Metodológico:** MEEXUU Framework (Fase 1: Análisis & Fase 2: Pre-producción y Diseño)  
