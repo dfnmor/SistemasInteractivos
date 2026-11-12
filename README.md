@@ -4,7 +4,7 @@
 > **Marco Metodológico:** MEEXUU Framework (Fase 1: Análisis, Fase 2: Diseño y Evaluación DIX09)  
 > **Normativa de Accesibilidad:** WCAG 2.2 Nivel AAA (Contraste ≥ 7:1, Blancos Táctiles ≥ 48×48 dp), EN 301 549, ISO/IEC 25010 y Diseño Universal para el Aprendizaje (DUA Principios I, II y III).
 
-**Señas y Sonrisas** es un sistema interactivo accesible conectado de punta a punta a **PostgreSQL 15+**, diseñado para **niños de 6 años con hipoacusia** (parcial o total) en etapa de adquisición de Lengua de Señas Mexicana (LSM) y articulación oral.
+Es un sistema interactivo accesible conectado de punta a punta a **PostgreSQL 15+**, diseñado para **niños de 6 años con hipoacusia** (parcial o total) en etapa de adquisición de Lengua de Señas Mexicana (LSM) y articulación oral.
 
 ---
 
