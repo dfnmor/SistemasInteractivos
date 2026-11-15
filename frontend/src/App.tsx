@@ -14,7 +14,6 @@ import {
   fetchCuentos,
   fetchRecompensas,
   crearNuevoPerfil,
-  guardarProgresoCuento,
   enviarMetricaIntento,
   canjearRecompensaApi,
 } from './services/api';
@@ -173,24 +172,6 @@ export const App: React.FC = () => {
     handleNavigate('MENU_PRINCIPAL', '/menu');
   };
 
-  const handleCompletarCuento = async (idCuento: number) => {
-    await guardarProgresoCuento(idCuento, perfilActivo.id_perfil, 30, 'COMPLETADO');
-    await cargarDatosPerfil(perfilActivo.id_perfil);
-  };
-
-  const handleActualizarProgresoParcial = async (
-    idCuento: number,
-    puntosEstimados = 15
-  ) => {
-    await guardarProgresoCuento(
-      idCuento,
-      perfilActivo.id_perfil,
-      puntosEstimados,
-      'EN_PROGRESO'
-    );
-    await cargarDatosPerfil(perfilActivo.id_perfil);
-  };
-
   const handleCanjearRecompensa = async (
     idRecompensa: number
   ): Promise<{ ok: boolean; mensaje: string }> => {
@@ -201,7 +182,7 @@ export const App: React.FC = () => {
     return { ok: res.ok, mensaje: res.mensaje };
   };
 
-  const handleRegistrarIntento = async (
+  const handleRegistrarIntento = useCallback(async (
     idEjercicio: number,
     precision: number
   ) => {
@@ -210,9 +191,47 @@ export const App: React.FC = () => {
       id_ejercicio: idEjercicio,
       porcentaje_precision: precision,
     });
-    await cargarDatosPerfil(perfilActivo.id_perfil);
-    return res.retroalimentacion;
-  };
+    const avisos: string[] = [];
+    if (res.source === 'in-memory-fallback') {
+      avisos.push('La base de datos no está disponible; este intento solo se conserva en memoria.');
+    }
+    try {
+      await cargarDatosPerfil(perfilActivo.id_perfil);
+    } catch (error) {
+      console.error('[App] El intento se guardó, pero no se pudo actualizar el catálogo:', error);
+      avisos.push('El intento se guardó, pero no se pudo actualizar el catálogo.');
+    }
+    return {
+      ...res.retroalimentacion,
+      cuento_completado: res.cuento_completado,
+      aviso: avisos.join(' '),
+    };
+  }, [cargarDatosPerfil, perfilActivo.id_perfil]);
+
+  const handleCambiarSena = useCallback((
+    idEjercicio: number,
+    direccion: -1 | 1
+  ) => {
+    const cuentoActual = cuentos.find((cuento) =>
+      cuento.ejercicios?.some((ejercicio) => ejercicio.id_ejercicio === idEjercicio)
+    );
+    if (!cuentoActual) return;
+
+    const ejercicios = cuentoActual.ejercicios
+      ?.slice()
+      .sort((a, b) => a.orden_en_cuento - b.orden_en_cuento) || [];
+    const indiceActual = ejercicios.findIndex(
+      (ejercicio) => ejercicio.id_ejercicio === idEjercicio
+    );
+    const destino = ejercicios[indiceActual + direccion];
+    if (!destino) return;
+
+    setEjercicioSeleccionado({
+      palabra: destino.palabra_o_sena,
+      idEjercicio: destino.id_ejercicio,
+      idCuento: cuentoActual.id_cuento,
+    });
+  }, [cuentos]);
 
   const handlePracticarEjercicio = (
     tipo: TipoCuento,
@@ -365,31 +384,33 @@ export const App: React.FC = () => {
               perfilActivo={perfilActivo}
               cuentos={cuentos}
               onNavigate={handleNavigate}
-              onCompletarCuento={handleCompletarCuento}
-              onGuardarProgresoParcial={handleActualizarProgresoParcial}
               onPracticarEjercicio={handlePracticarEjercicio}
             />
           )}
 
           {vistaActiva === 'PRACTICA_V2' && (
             <ModuloLSMView
+              key={ejercicioSeleccionado.idEjercicio}
               perfilActivo={perfilActivo}
               cuentos={cuentos}
               senaInicial={ejercicioSeleccionado}
               modoDemo={modoDemo}
               onToggleDemo={handleToggleDemo}
               onRegistrarIntento={handleRegistrarIntento}
+              onCambiarSena={handleCambiarSena}
               onNavigate={handleNavigate}
             />
           )}
 
           {vistaActiva === 'MODULO_2_ARTICULACION' && (
             <ModuloArticulacionView
+              key={ejercicioSeleccionado.idEjercicio}
               perfilActivo={perfilActivo}
               cuentos={cuentos}
               palabraInicial={ejercicioSeleccionado}
               modoDemo={modoDemo}
               onRegistrarIntento={handleRegistrarIntento}
+              onCambiarSena={handleCambiarSena}
               onNavigate={handleNavigate}
             />
           )}

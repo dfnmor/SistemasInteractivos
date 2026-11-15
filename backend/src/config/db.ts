@@ -213,11 +213,11 @@ export const fallbackStore: {
     },
   ],
   ejercicios: [
-    { id_ejercicio: 1, id_cuento: 1, patron_referencia_id: 101, palabra_o_sena: 'HOLA', orden_en_cuento: 1 },
-    { id_ejercicio: 2, id_cuento: 1, patron_referencia_id: 102, palabra_o_sena: 'LUNA', orden_en_cuento: 2 },
-    { id_ejercicio: 3, id_cuento: 1, patron_referencia_id: 103, palabra_o_sena: 'CONEJO', orden_en_cuento: 3 },
-    { id_ejercicio: 4, id_cuento: 2, patron_referencia_id: 104, palabra_o_sena: 'MAMÁ', orden_en_cuento: 1 },
-    { id_ejercicio: 5, id_cuento: 2, patron_referencia_id: 105, palabra_o_sena: 'PAPÁ', orden_en_cuento: 2 },
+    { id_ejercicio: 1, id_cuento: 1, patron_referencia_id: 101, palabra_o_sena: 'HOLA', orden_en_cuento: 1, imagen_sena: '/hola.png' },
+    { id_ejercicio: 2, id_cuento: 1, patron_referencia_id: 102, palabra_o_sena: 'LUNA', orden_en_cuento: 2, imagen_sena: '/luna.png' },
+    { id_ejercicio: 3, id_cuento: 1, patron_referencia_id: 103, palabra_o_sena: 'CONEJO', orden_en_cuento: 3, imagen_sena: '/conejo.jpeg' },
+    { id_ejercicio: 4, id_cuento: 2, patron_referencia_id: 104, palabra_o_sena: 'MAMÁ', orden_en_cuento: 1, imagen_sena: '/mam%C3%A1.jpeg' },
+    { id_ejercicio: 5, id_cuento: 2, patron_referencia_id: 105, palabra_o_sena: 'PAPÁ', orden_en_cuento: 2, imagen_sena: '/pap%C3%A1.jpeg' },
     { id_ejercicio: 6, id_cuento: 2, patron_referencia_id: 106, palabra_o_sena: 'ADIÓS', orden_en_cuento: 3 },
     { id_ejercicio: 7, id_cuento: 3, patron_referencia_id: 107, palabra_o_sena: 'MA-MÁ', orden_en_cuento: 1 },
     { id_ejercicio: 8, id_cuento: 3, patron_referencia_id: 108, palabra_o_sena: 'PA-PÁ', orden_en_cuento: 2 },
@@ -242,9 +242,9 @@ export const fallbackStore: {
     { id_ejercicio: 27, id_cuento: 9, patron_referencia_id: 309, palabra_o_sena: 'A-MI-GOS', orden_en_cuento: 3 },
   ],
   progresos: [
-    { id_progreso: 1, id_perfil: 1, id_cuento: 1, estado: 'COMPLETADO', puntos_obtenidos: 30, fecha_completado: new Date(Date.now() - 2 * 86400000).toISOString() },
+    { id_progreso: 1, id_perfil: 1, id_cuento: 1, estado: 'EN_PROGRESO', puntos_obtenidos: 30, fecha_completado: null },
     { id_progreso: 2, id_perfil: 1, id_cuento: 4, estado: 'EN_PROGRESO', puntos_obtenidos: 20, fecha_completado: null },
-    { id_progreso: 3, id_perfil: 2, id_cuento: 1, estado: 'COMPLETADO', puntos_obtenidos: 30, fecha_completado: new Date(Date.now() - 1 * 86400000).toISOString() },
+    { id_progreso: 3, id_perfil: 2, id_cuento: 1, estado: 'EN_PROGRESO', puntos_obtenidos: 30, fecha_completado: null },
     { id_progreso: 4, id_perfil: 2, id_cuento: 2, estado: 'EN_PROGRESO', puntos_obtenidos: 15, fecha_completado: null },
   ],
   metricas: [

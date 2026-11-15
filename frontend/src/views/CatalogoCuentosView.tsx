@@ -23,8 +23,6 @@ interface CatalogoCuentosViewProps {
   perfilActivo: PerfilNino;
   cuentos: Cuento[];
   onNavigate: (vista: VistaActiva, path?: string) => void;
-  onCompletarCuento: (id_cuento: number) => Promise<void>;
-  onGuardarProgresoParcial?: (id_cuento: number, puntos?: number) => Promise<void>;
   onPracticarEjercicio: (
     tipo: TipoCuento,
     palabra: string,
@@ -55,33 +53,20 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
   perfilActivo,
   cuentos,
   onNavigate,
-  onCompletarCuento,
-  onGuardarProgresoParcial,
   onPracticarEjercicio,
 }) => {
   const esNoLector = perfilActivo.nivel_lectura === 'NO_LECTOR';
   const [filtroNivel, setFiltroNivel] = useState<'TODOS' | NivelLectura>('TODOS');
   const [cuentoAbierto, setCuentoAbierto] = useState<Cuento | null>(null);
   const [escena, setEscena] = useState(0);
-  const [guardando, setGuardando] = useState(false);
-
-  const LOCAL_STORAGE_KEY = `meexuu_progreso_cuento_${perfilActivo.id_perfil}`;
 
   const abrirCuentoConReanudacion = (cuento: Cuento) => {
     setCuentoAbierto(cuento);
-    try {
-      const guardado = localStorage.getItem(`${LOCAL_STORAGE_KEY}_${cuento.id_cuento}`);
-      if (guardado) {
-        const parsed = JSON.parse(guardado);
-        const escenaGuardada = Number(parsed.escena) || 0;
-        const totalEj = cuento.ejercicios?.length || 1;
-        setEscena(escenaGuardada < totalEj ? escenaGuardada : 0);
-      } else {
-        setEscena(0);
-      }
-    } catch {
-      setEscena(0);
-    }
+    const ejercicios = [...(cuento.ejercicios || [])].sort(
+      (a, b) => a.orden_en_cuento - b.orden_en_cuento
+    );
+    const primeraPendiente = ejercicios.findIndex((ejercicio) => !ejercicio.aprobada);
+    setEscena(primeraPendiente < 0 ? 0 : primeraPendiente);
   };
 
   const cerrarCuento = () => {
@@ -89,36 +74,18 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
     setEscena(0);
   };
 
-  const handleCambiarEscena = (nuevaEscena: number) => {
-    setEscena(nuevaEscena);
-    if (!cuentoAbierto) return;
-    try {
-      localStorage.setItem(
-        `${LOCAL_STORAGE_KEY}_${cuentoAbierto.id_cuento}`,
-        JSON.stringify({
-          id_cuento: cuentoAbierto.id_cuento,
-          id_perfil: perfilActivo.id_perfil,
-          escena: nuevaEscena,
-          fecha: new Date().toISOString(),
-        })
-      );
-    } catch {
-      // Ignorar fallo de almacenamiento
-    }
-
-    if (onGuardarProgresoParcial) {
-      onGuardarProgresoParcial(cuentoAbierto.id_cuento, 15).catch(() => {});
-    }
-  };
-
   // ---------------------------------------------------------------------------
   // VISTA DE NARRATIVA DE CUENTO (Boceto Fase 1, Act. 6: "Narrativa de cuento")
   // ---------------------------------------------------------------------------
   if (cuentoAbierto) {
-    const ejercicios = cuentoAbierto.ejercicios || [];
+    const ejercicios = (cuentoAbierto.ejercicios || [])
+      .slice()
+      .sort((a, b) => a.orden_en_cuento - b.orden_en_cuento);
     const total = Math.max(ejercicios.length, 1);
     const ej = ejercicios[escena];
-    const avance = Math.round(((escena + 1) / total) * 100);
+    const aprobadas = ejercicios.filter((ejercicio) => ejercicio.aprobada).length;
+    const cuentoCompleto = ejercicios.length > 0 && aprobadas === ejercicios.length;
+    const avance = Math.round((aprobadas / total) * 100);
     const fondo =
       FONDOS_PASTEL[(cuentoAbierto.id_cuento - 1) % FONDOS_PASTEL.length];
 
@@ -200,52 +167,77 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
           )}
         </div>
 
-        {/* Botón circular Play (▶) + barra de progreso horizontal */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <button
-            type="button"
-            onClick={() => handleCambiarEscena(escena + 1 < total ? escena + 1 : 0)}
-            aria-label="Siguiente escena del cuento"
-            style={{
-              width: '64px',
-              height: '64px',
-              minWidth: '64px',
-              minHeight: '64px',
-              borderRadius: '50%',
-              backgroundColor: '#0F172A',
-              color: '#FFFFFF',
-              border: '3px solid #004488',
-              fontSize: '1.5rem',
-              padding: 0,
-              flexShrink: 0,
-            }}
+        <div className="card-aaa">
+          <div
+            role="group"
+            aria-label="Elegir seña del cuento"
+            style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px', marginBottom: '12px' }}
           >
-            ▶
-          </button>
-          <div style={{ flex: 1 }}>
-            <div className="progress-track-aaa" style={{ height: '14px' }}>
-              <div
-                className="progress-fill-aaa"
-                style={{ width: `${avance}%` }}
-              />
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                marginTop: '4px',
-                fontSize: '0.82rem',
-                fontWeight: 700,
-                color: 'var(--text-secondary)',
-              }}
-            >
-              <span>Escena {escena + 1} de {total}</span>
-              <span>💾 Progreso guardado automáticamente</span>
-            </div>
+            {ejercicios.map((ejercicio, indice) => (
+              <button
+                key={ejercicio.id_ejercicio}
+                type="button"
+                className={indice === escena ? 'btn-primary-aaa' : 'btn-secondary-aaa'}
+                aria-pressed={indice === escena}
+                onClick={() => setEscena(indice)}
+              >
+                {ejercicio.aprobada ? '✓ ' : ''}{ejercicio.palabra_o_sena}
+              </button>
+            ))}
           </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button
+              type="button"
+              className="btn-secondary-aaa"
+              disabled={escena === 0}
+              onClick={() => setEscena((actual) => Math.max(0, actual - 1))}
+              aria-label="Seña anterior"
+            >
+              ← Anterior
+            </button>
+          <div className="progress-track-aaa" style={{ height: '14px' }}>
+            <div className="progress-fill-aaa" style={{ width: `${avance}%` }} />
+          </div>
+            <button
+              type="button"
+              className="btn-secondary-aaa"
+              disabled={escena >= ejercicios.length - 1}
+              onClick={() =>
+                setEscena((actual) => Math.min(ejercicios.length - 1, actual + 1))
+              }
+              aria-label="Siguiente seña"
+            >
+              Siguiente →
+            </button>
+          </div>
+          <p className="text-support" style={{ marginBottom: 0, textAlign: 'center' }}>
+            {cuentoCompleto
+              ? `Cuento completado · puedes volver a practicar cualquier seña (${aprobadas}/${ejercicios.length})`
+              : `Señas aprobadas: ${aprobadas} de ${ejercicios.length}. Para avanzar, aprueba cada seña con más de 60%.`}
+          </p>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {cuentoCompleto && (
+            <div className="cuento-completado-celebracion" role="status" aria-live="polite">
+              <span aria-hidden="true">✨ ⭐ ✨</span>
+              <strong>¡Cuento completado!</strong>
+              <button
+                type="button"
+                className="btn-primary-aaa"
+                onClick={() => setEscena(0)}
+              >
+                Rehacer cuento desde el inicio
+              </button>
+              <button
+                type="button"
+                className="btn-secondary-aaa"
+                onClick={cerrarCuento}
+              >
+                Ver cuentos
+              </button>
+            </div>
+          )}
           {ej && (
             <button
               type="button"
@@ -268,30 +260,6 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
               </span>
             </button>
           )}
-
-          <button
-            type="button"
-            className="btn-success-aaa"
-            style={{ width: '100%' }}
-            disabled={guardando}
-            onClick={async () => {
-              setGuardando(true);
-              try {
-                try {
-                  localStorage.removeItem(`${LOCAL_STORAGE_KEY}_${cuentoAbierto.id_cuento}`);
-                } catch {}
-                await onCompletarCuento(cuentoAbierto.id_cuento);
-                cerrarCuento();
-              } finally {
-                setGuardando(false);
-              }
-            }}
-          >
-            <span aria-hidden="true">★</span>
-            <span>
-              {esNoLector ? '✓ +30 ★' : 'Completar cuento (+30 ★)'}
-            </span>
-          </button>
         </div>
       </section>
     );
@@ -384,8 +352,20 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {lista.map((cuento, idx) => {
           const completado = cuento.progreso_usuario?.estado === 'COMPLETADO';
-          const enProgreso =
-            cuento.progreso_usuario?.estado === 'EN_PROGRESO' || idx === 1;
+          const enProgreso = cuento.progreso_usuario?.estado === 'EN_PROGRESO';
+          const nivelAnteriorCompleto =
+            cuento.orden_dificultad === 1 ||
+            cuentos
+              .filter((anterior) => anterior.orden_dificultad === cuento.orden_dificultad - 1)
+              .every((anterior) => anterior.progreso_usuario?.estado === 'COMPLETADO');
+          const ejercicios = cuento.ejercicios || [];
+          const progresoPorcentaje = ejercicios.length
+            ? Math.round(
+                (ejercicios.filter((ejercicio) => ejercicio.aprobada).length /
+                  ejercicios.length) *
+                  100
+              )
+            : 0;
           const senas = (cuento.ejercicios || [])
             .map((e) => e.palabra_o_sena)
             .join(', ');
@@ -398,6 +378,8 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '10px',
+                filter: nivelAnteriorCompleto ? undefined : 'grayscale(1)',
+                opacity: nivelAnteriorCompleto ? 1 : 0.62,
               }}
             >
               {/* Fila superior: "🌱 Nivel 1 | ⏱ 5 min" a la izquierda, "☆☆☆" o "60% completado" a la derecha */}
@@ -440,7 +422,7 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
                   {completado
                     ? '★★★'
                     : enProgreso
-                    ? '60% completado'
+                    ? `${progresoPorcentaje}% completado`
                     : '☆☆☆'}
                 </span>
               </div>
@@ -450,9 +432,14 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
                 <div className="progress-track-aaa" style={{ height: '6px' }}>
                   <div
                     className="progress-fill-aaa"
-                    style={{ width: '60%' }}
+                    style={{ width: `${progresoPorcentaje}%` }}
                   />
                 </div>
+              )}
+              {!nivelAnteriorCompleto && (
+                <span className="pill-label" aria-label="Cuento bloqueado">
+                  🔒 Completa el nivel anterior para desbloquear
+                </span>
               )}
 
               {/* Recuadro de ilustración pastel (Wireframe 2) */}
@@ -499,12 +486,21 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
                 type="button"
                 className="btn-primary-aaa"
                 style={{ width: '100%', marginTop: '4px' }}
+                disabled={!nivelAnteriorCompleto}
                 onClick={() => {
                   abrirCuentoConReanudacion(cuento);
                 }}
               >
                 <span aria-hidden="true">▶</span>
-                <span>{enProgreso ? 'Continuar Cuento (Reanudar)' : 'Abrir Cuento'}</span>
+                <span>
+                  {!nivelAnteriorCompleto
+                    ? 'Cuento bloqueado'
+                    : enProgreso
+                    ? 'Continuar cuento'
+                    : completado
+                    ? 'Volver a hacer cuento'
+                    : 'Abrir cuento'}
+                </span>
               </button>
             </article>
           );

@@ -75,6 +75,12 @@ npm run db:migrate
 ```
 *(Este comando aplica en orden `/database/schema.sql` y `/database/seed.sql`, insertando 1 tutor, 2 perfiles de ejemplo con sordera parcial y total, 9 cuentos —3 por nivel—, 27 ejercicios y 3 recompensas).*
 
+Si la base ya existía antes de añadir las imágenes de señas, los scripts de inicialización de Docker no se vuelven a ejecutar automáticamente. Aplica la migración aditiva sin borrar datos:
+
+```bash
+docker exec -i meexuu_postgres_db psql -U meexuu_admin -d db_meexuu < database/migrations/001_imagen_sena.sql
+```
+
 ### 4. Levantar el Servidor Backend (`/backend`)
 
 ```bash

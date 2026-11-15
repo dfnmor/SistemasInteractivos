@@ -173,6 +173,16 @@ INSERT INTO TABLA_EJERCICIO_CUENTO (id_cuento, patron_referencia_id, palabra_o_s
 (9, 308, 'SON-RI-SA', 2),
 (9, 309, 'A-MI-GOS', 3);
 
+UPDATE TABLA_EJERCICIO_CUENTO
+SET imagen_sena = CASE palabra_o_sena
+    WHEN 'HOLA' THEN '/hola.png'
+    WHEN 'LUNA' THEN '/luna.png'
+    WHEN 'CONEJO' THEN '/conejo.jpeg'
+    WHEN 'MAMÁ' THEN '/mam%C3%A1.jpeg'
+    WHEN 'PAPÁ' THEN '/pap%C3%A1.jpeg'
+    ELSE NULL
+END;
+
 -- =============================================================================
 -- 5. CATÁLOGO DE RECOMPENSAS (3 Recompensas Desbloqueables por Puntos)
 -- =============================================================================
@@ -185,9 +195,9 @@ INSERT INTO TABLA_RECOMPENSA (nombre, costo_puntos, icono_url) VALUES
 -- 6. PROGRESO, MÉTRICAS DE INTENTOS Y CANJES INICIALES PARA EL DASHBOARD
 -- =============================================================================
 INSERT INTO TABLA_PROGRESO_CUENTO (id_perfil, id_cuento, estado, puntos_obtenidos, fecha_completado) VALUES
-(1, 1, 'COMPLETADO', 30, CURRENT_TIMESTAMP - INTERVAL '2 days'),
+(1, 1, 'EN_PROGRESO', 30, NULL),
 (1, 4, 'EN_PROGRESO', 20, NULL),
-(2, 1, 'COMPLETADO', 30, CURRENT_TIMESTAMP - INTERVAL '1 day'),
+(2, 1, 'EN_PROGRESO', 30, NULL),
 (2, 2, 'EN_PROGRESO', 15, NULL);
 
 INSERT INTO TABLA_METRICA_INTENTO (id_perfil, id_ejercicio, porcentaje_precision, resultado, puntos_otorgados, fecha_hora) VALUES
@@ -202,4 +212,3 @@ INSERT INTO TABLA_CANJE_RECOMPENSA (id_perfil, id_recompensa, fecha_canje) VALUE
 (1, 1, CURRENT_TIMESTAMP - INTERVAL '1 day');
 
 COMMIT;
-

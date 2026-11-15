@@ -2,6 +2,22 @@ import { Request, Response } from 'express';
 import { query, fallbackStore } from '../config/db';
 import { Cuento, EjercicioCuento, EstadoProgreso } from '../models/types';
 
+const IMAGEN_SENA_POR_PALABRA: Readonly<Record<string, string>> = {
+  HOLA: '/hola.png',
+  LUNA: '/luna.png',
+  CONEJO: '/conejo.jpeg',
+  'MAMÁ': '/mam%C3%A1.jpeg',
+  'PAPÁ': '/pap%C3%A1.jpeg',
+};
+
+const asociarImagenSena = (ejercicio: EjercicioCuento): EjercicioCuento => ({
+  ...ejercicio,
+  imagen_sena:
+    ejercicio.imagen_sena?.trim() ||
+    IMAGEN_SENA_POR_PALABRA[ejercicio.palabra_o_sena.trim().toLocaleUpperCase('es')] ||
+    null,
+});
+
 /**
  * CU-03: Seleccionar Cuento / Módulo (RF-03, RF-04, RF-08)
  * Permite filtrar por `tipo` ('LSM' | 'ARTICULACION') y `nivel_lectura` ('NO_LECTOR' | 'LECTURA_INICIAL' | 'LECTOR_AVANZADO')
@@ -38,6 +54,7 @@ export const getCuentos = async (req: Request, res: Response): Promise<void> => 
     );
 
     let progresosMap = new Map<number, { estado: EstadoProgreso; puntos_obtenidos: number }>();
+    let ejerciciosAprobados = new Set<number>();
     if (id_perfil) {
       const progRes = await query(
         'SELECT id_cuento, estado, puntos_obtenidos FROM TABLA_PROGRESO_CUENTO WHERE id_perfil = $1',
@@ -49,13 +66,45 @@ export const getCuentos = async (req: Request, res: Response): Promise<void> => 
           puntos_obtenidos: row.puntos_obtenidos,
         });
       });
+      const metricasRes = await query<{ id_ejercicio: number }>(
+        `SELECT id_ejercicio
+         FROM TABLA_METRICA_INTENTO
+         WHERE id_perfil = $1 AND porcentaje_precision > 60
+         GROUP BY id_ejercicio`,
+        [Number(id_perfil)]
+      );
+      ejerciciosAprobados = new Set(
+        metricasRes.rows.map((row) => row.id_ejercicio)
+      );
     }
 
-    const data = cuentosRes.rows.map((cuento) => ({
-      ...cuento,
-      ejercicios: ejerciciosRes.rows.filter((e) => e.id_cuento === cuento.id_cuento),
-      progreso_usuario: progresosMap.get(cuento.id_cuento) || null,
-    }));
+    const data = cuentosRes.rows.map((cuento) => {
+      const ejercicios = ejerciciosRes.rows
+        .filter((e) => e.id_cuento === cuento.id_cuento)
+        .map((ejercicio) => ({
+          ...asociarImagenSena(ejercicio),
+          aprobada: ejerciciosAprobados.has(ejercicio.id_ejercicio),
+        }));
+      const aprobadasTodas =
+        ejercicios.length > 0 && ejercicios.every((ejercicio) => ejercicio.aprobada);
+      const progresoExistente = progresosMap.get(cuento.id_cuento);
+
+      return {
+        ...cuento,
+        ejercicios,
+        progreso_usuario: aprobadasTodas
+          ? {
+              estado: 'COMPLETADO' as EstadoProgreso,
+              puntos_obtenidos: progresoExistente?.puntos_obtenidos ?? 0,
+            }
+          : progresoExistente || ejercicios.some((ejercicio) => ejercicio.aprobada)
+          ? {
+              estado: 'EN_PROGRESO' as EstadoProgreso,
+              puntos_obtenidos: progresoExistente?.puntos_obtenidos ?? 0,
+            }
+          : null,
+      };
+    });
 
     res.json({
       source: 'postgresql',
@@ -77,19 +126,44 @@ export const getCuentos = async (req: Request, res: Response): Promise<void> => 
       .map((cuento) => {
         const ejercicios = fallbackStore.ejercicios
           .filter((e) => e.id_cuento === cuento.id_cuento)
-          .sort((a, b) => a.orden_en_cuento - b.orden_en_cuento);
+          .sort((a, b) => a.orden_en_cuento - b.orden_en_cuento)
+          .map((ejercicio) => {
+            const aprobada = Boolean(
+              id_perfil &&
+                fallbackStore.metricas.some(
+                  (metrica) =>
+                    metrica.id_perfil === Number(id_perfil) &&
+                    metrica.id_ejercicio === ejercicio.id_ejercicio &&
+                    metrica.porcentaje_precision > 60
+                )
+            );
+            return {
+              ...asociarImagenSena(ejercicio),
+              aprobada,
+            };
+          });
 
         const prog = id_perfil
           ? fallbackStore.progresos.find(
               (p) => p.id_perfil === Number(id_perfil) && p.id_cuento === cuento.id_cuento
             )
           : null;
+        const aprobadasTodas =
+          ejercicios.length > 0 && ejercicios.every((ejercicio) => ejercicio.aprobada);
 
         return {
           ...cuento,
           ejercicios,
-          progreso_usuario: prog
-            ? { estado: prog.estado, puntos_obtenidos: prog.puntos_obtenidos }
+          progreso_usuario: aprobadasTodas
+            ? {
+                estado: 'COMPLETADO' as EstadoProgreso,
+                puntos_obtenidos: prog?.puntos_obtenidos ?? 0,
+              }
+            : prog || ejercicios.some((ejercicio) => ejercicio.aprobada)
+            ? {
+                estado: 'EN_PROGRESO' as EstadoProgreso,
+                puntos_obtenidos: prog?.puntos_obtenidos ?? 0,
+              }
             : null,
         };
       });
@@ -133,7 +207,7 @@ export const getCuentoById = async (req: Request, res: Response): Promise<void> 
       source: 'postgresql',
       data: {
         ...cuentoRes.rows[0],
-        ejercicios: ejerciciosRes.rows,
+        ejercicios: ejerciciosRes.rows.map(asociarImagenSena),
       },
     });
   } catch (_err) {
@@ -145,7 +219,8 @@ export const getCuentoById = async (req: Request, res: Response): Promise<void> 
 
     const ejercicios = fallbackStore.ejercicios
       .filter((e) => e.id_cuento === idCuento)
-      .sort((a, b) => a.orden_en_cuento - b.orden_en_cuento);
+      .sort((a, b) => a.orden_en_cuento - b.orden_en_cuento)
+      .map(asociarImagenSena);
 
     res.json({
       source: 'in-memory-fallback',
@@ -174,6 +249,43 @@ export const registrarProgresoCuento = async (req: Request, res: Response): Prom
     estado === 'EN_PROGRESO' ? 'EN_PROGRESO' : 'COMPLETADO';
 
   try {
+    let puntosOtorgados = puntos;
+    if (estadoValido === 'COMPLETADO') {
+      const resultadoAprobaciones = await query<{ total: number; aprobados: number }>(
+        `SELECT
+           COUNT(*)::int AS total,
+           COUNT(*) FILTER (
+             WHERE EXISTS (
+               SELECT 1
+               FROM TABLA_METRICA_INTENTO m
+               WHERE m.id_perfil = $1
+                 AND m.id_ejercicio = e.id_ejercicio
+                 AND m.porcentaje_precision > 60
+             )
+           )::int AS aprobados
+         FROM TABLA_EJERCICIO_CUENTO e
+         WHERE e.id_cuento = $2`,
+        [Number(id_perfil), idCuento]
+      );
+      if (
+        resultadoAprobaciones.rows[0].total === 0 ||
+        resultadoAprobaciones.rows[0].aprobados !==
+          resultadoAprobaciones.rows[0].total
+      ) {
+        res.status(409).json({
+          error: 'El cuento solo se completa al aprobar todas sus señas con más de 60%',
+        });
+        return;
+      }
+      const progresoPrevio = await query<{ estado: EstadoProgreso }>(
+        'SELECT estado FROM TABLA_PROGRESO_CUENTO WHERE id_perfil = $1 AND id_cuento = $2',
+        [Number(id_perfil), idCuento]
+      );
+      if (progresoPrevio.rows[0]?.estado === 'COMPLETADO') {
+        puntosOtorgados = 0;
+      }
+    }
+
     const fechaCompletado = estadoValido === 'COMPLETADO' ? new Date().toISOString() : null;
 
     const progresoRes = await query(
@@ -185,15 +297,15 @@ export const registrarProgresoCuento = async (req: Request, res: Response): Prom
          puntos_obtenidos = GREATEST(TABLA_PROGRESO_CUENTO.puntos_obtenidos, EXCLUDED.puntos_obtenidos),
          fecha_completado = COALESCE(EXCLUDED.fecha_completado, TABLA_PROGRESO_CUENTO.fecha_completado)
        RETURNING *`,
-      [Number(id_perfil), idCuento, estadoValido, puntos, fechaCompletado]
+      [Number(id_perfil), idCuento, estadoValido, puntosOtorgados, fechaCompletado]
     );
 
-    if (puntos > 0 && estadoValido === 'COMPLETADO') {
+    if (puntosOtorgados > 0 && estadoValido === 'COMPLETADO') {
       await query(
         `UPDATE TABLA_PERFIL
          SET puntos_acumulados = puntos_acumulados + $1
          WHERE id_perfil = $2`,
-        [puntos, Number(id_perfil)]
+        [puntosOtorgados, Number(id_perfil)]
       );
     }
 
@@ -203,15 +315,41 @@ export const registrarProgresoCuento = async (req: Request, res: Response): Prom
       data: progresoRes.rows[0],
     });
   } catch (_err) {
+    if (estadoValido === 'COMPLETADO') {
+      const ejercicios = fallbackStore.ejercicios.filter(
+        (ejercicio) => ejercicio.id_cuento === idCuento
+      );
+      const todasAprobadas =
+        ejercicios.length > 0 &&
+        ejercicios.every((ejercicio) =>
+          fallbackStore.metricas.some(
+            (metrica) =>
+              metrica.id_perfil === Number(id_perfil) &&
+              metrica.id_ejercicio === ejercicio.id_ejercicio &&
+              metrica.porcentaje_precision > 60
+          )
+        );
+      if (!todasAprobadas) {
+        res.status(409).json({
+          error: 'El cuento solo se completa al aprobar todas sus señas con más de 60%',
+        });
+        return;
+      }
+    }
+
     const existing = fallbackStore.progresos.find(
       (p) => p.id_perfil === Number(id_perfil) && p.id_cuento === idCuento
     );
+    const puntosOtorgados =
+      estadoValido === 'COMPLETADO' && existing?.estado === 'COMPLETADO'
+        ? 0
+        : puntos;
 
     const now = estadoValido === 'COMPLETADO' ? new Date().toISOString() : null;
 
     if (existing) {
       existing.estado = estadoValido;
-      existing.puntos_obtenidos = Math.max(existing.puntos_obtenidos, puntos);
+      existing.puntos_obtenidos = Math.max(existing.puntos_obtenidos, puntosOtorgados);
       existing.fecha_completado = now || existing.fecha_completado;
     } else {
       const nextId =
@@ -221,14 +359,14 @@ export const registrarProgresoCuento = async (req: Request, res: Response): Prom
         id_perfil: Number(id_perfil),
         id_cuento: idCuento,
         estado: estadoValido,
-        puntos_obtenidos: puntos,
+        puntos_obtenidos: puntosOtorgados,
         fecha_completado: now,
       });
     }
 
     const perfil = fallbackStore.perfiles.find((p) => p.id_perfil === Number(id_perfil));
-    if (perfil && puntos > 0 && estadoValido === 'COMPLETADO') {
-      perfil.puntos_acumulados += puntos;
+    if (perfil && puntosOtorgados > 0 && estadoValido === 'COMPLETADO') {
+      perfil.puntos_acumulados += puntosOtorgados;
     }
 
     res.status(201).json({
@@ -238,4 +376,3 @@ export const registrarProgresoCuento = async (req: Request, res: Response): Prom
     });
   }
 };
-

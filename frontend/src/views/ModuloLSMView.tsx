@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 import { PerfilNino, Cuento, VistaActiva } from '../types/meexuu';
 
 /* =============================================================================
@@ -34,7 +35,10 @@ interface ModuloLSMViewProps {
     titulo: string;
     mensaje: string;
     icono: string;
+    cuento_completado?: boolean;
+    aviso?: string;
   }>;
+  onCambiarSena: (idEjercicio: number, direccion: -1 | 1) => void;
   onNavigate: (vista: VistaActiva, path?: string) => void;
 }
 
@@ -62,6 +66,14 @@ const ICONO_POR_SENA: Record<string, string> = {
   AMIGO: '🤝',
 };
 
+const IMAGEN_POR_SENA: Record<string, string> = {
+  HOLA: '/hola.png',
+  LUNA: '/luna.png',
+  CONEJO: '/conejo.jpeg',
+  MAMÁ: '/mam%C3%A1.jpeg',
+  PAPÁ: '/pap%C3%A1.jpeg',
+};
+
 const PASOS_PREPARACION = [
   { icono: '🖐️', texto: 'Prepara tus manos' },
   { icono: '👀', texto: 'Mira las esquinas guía' },
@@ -70,7 +82,7 @@ const PASOS_PREPARACION = [
 
 const MAX_INTENTOS = 3;
 
-type Fase = 'PREPARACION' | 'CAMARA';
+type Fase = 'REFERENCIA' | 'PREPARACION' | 'CAMARA';
 type Resultado = 'EXITO_INICIAL' | 'EXITO' | 'CASI';
 
 export const ModuloLSMView: React.FC<ModuloLSMViewProps> = ({
@@ -80,6 +92,7 @@ export const ModuloLSMView: React.FC<ModuloLSMViewProps> = ({
   modoDemo = false,
   onToggleDemo,
   onRegistrarIntento,
+  onCambiarSena,
   onNavigate,
 }) => {
   const esNoLector = perfilActivo.nivel_lectura === 'NO_LECTOR';
@@ -92,16 +105,42 @@ export const ModuloLSMView: React.FC<ModuloLSMViewProps> = ({
     const elegido =
       todos.find((e) => e.id_ejercicio === senaInicial?.idEjercicio) ||
       todos.find((e) => e.tipo === 'LSM');
+    const palabra = (elegido?.palabra_o_sena ?? senaInicial?.palabra ?? 'HOLA')
+      .trim()
+      .toLocaleUpperCase('es');
     return {
       id_ejercicio: elegido?.id_ejercicio ?? senaInicial?.idEjercicio ?? 1,
-      palabra: (elegido?.palabra_o_sena ?? senaInicial?.palabra ?? 'HOLA').toUpperCase(),
+      id_cuento: elegido?.id_cuento ?? senaInicial?.idCuento,
+      palabra,
+      imagen_sena: elegido?.imagen_sena || IMAGEN_POR_SENA[palabra] || null,
+      aprobada: Boolean(elegido?.aprobada),
     };
   }, [cuentos, senaInicial]);
 
   const categoria = CATEGORIA_POR_SENA[senaActual.palabra] || 'SALUDO';
   const iconoSena = ICONO_POR_SENA[senaActual.palabra] || '✋';
+  const visualSena = (pequena = false, lenta = false) =>
+    senaActual.imagen_sena ? (
+      <img
+        className={`sena-imagen${pequena ? ' sena-imagen-pequena' : ''}`}
+        src={senaActual.imagen_sena}
+        alt={`Seña de ${senaActual.palabra.toLocaleLowerCase('es')}`}
+      />
+    ) : (
+      <span
+        className={
+          lenta
+            ? 'dix09-reference-playing-slow'
+            : 'dix09-reference-playing-normal'
+        }
+        aria-hidden="true"
+      >
+        ✋ {iconoSena}
+      </span>
+    );
 
-  const [fase, setFase] = useState<Fase>('PREPARACION');
+  const [fase, setFase] = useState<Fase>('REFERENCIA');
+  const [cuentaReferencia, setCuentaReferencia] = useState(5);
   const [pasoPreparacion, setPasoPreparacion] = useState(0);
   const [preparacionPausada, setPreparacionPausada] = useState(false);
   const [videoReal, setVideoReal] = useState(false);
@@ -112,9 +151,23 @@ export const ModuloLSMView: React.FC<ModuloLSMViewProps> = ({
   const [analizando, setAnalizando] = useState(false);
   const [resultado, setResultado] = useState<Resultado>('EXITO_INICIAL');
   const [precision, setPrecision] = useState<number>(88);
+  const [manosDetectadas, setManosDetectadas] = useState(false);
+  const [cuenta, setCuenta] = useState<number | null>(null);
+  const [guardando, setGuardando] = useState(false);
+  const [mostrarResultado, setMostrarResultado] = useState(false);
+  const [cuentoCompletado, setCuentoCompletado] = useState(false);
+  const [errorIntento, setErrorIntento] = useState<string | null>(null);
+  const [avisoIntento, setAvisoIntento] = useState<string | null>(null);
+  const [ultimoIntentoAprobado, setUltimoIntentoAprobado] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const landmarkerRef = useRef<HandLandmarker | null>(null);
+  const capturaActivaRef = useRef(false);
+  const manoPresenteRef = useRef(false);
+  const guardandoRef = useRef(false);
+  const intentoFinalizadoRef = useRef(false);
 
   const detenerCamara = useCallback(() => {
     if (streamRef.current) {
@@ -125,11 +178,134 @@ export const ModuloLSMView: React.FC<ModuloLSMViewProps> = ({
 
   useEffect(() => detenerCamara, [detenerCamara]);
 
+  const registrarIntento = useCallback(async (valor: number) => {
+    const inicio = Date.now();
+    intentoFinalizadoRef.current = true;
+    setGuardando(true);
+    guardandoRef.current = true;
+    setAnalizando(true);
+    setReferencia('OCULTA');
+    setMostrarResultado(false);
+    setUltimoIntentoAprobado(false);
+    setErrorIntento(null);
+    setAvisoIntento(null);
+    try {
+      const resultadoGuardado = await onRegistrarIntento(
+        senaActual.id_ejercicio,
+        valor
+      );
+      const esperaRestante = 1000 - (Date.now() - inicio);
+      if (esperaRestante > 0) {
+        await new Promise((resolve) => window.setTimeout(resolve, esperaRestante));
+      }
+
+      const aprobado = valor > 60;
+      setPrecision(valor);
+      setResultado(aprobado ? 'EXITO' : 'CASI');
+      setUltimoIntentoAprobado(aprobado);
+      setIntentosFallidos((actuales) =>
+        aprobado ? 0 : actuales >= MAX_INTENTOS ? 1 : actuales + 1
+      );
+      setCuentoCompletado(Boolean(resultadoGuardado.cuento_completado));
+      setAvisoIntento(resultadoGuardado.aviso || null);
+      setMostrarResultado(true);
+    } catch (error) {
+      intentoFinalizadoRef.current = false;
+      setErrorIntento(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo guardar el resultado. Intenta de nuevo.'
+      );
+    } finally {
+      setGuardando(false);
+      guardandoRef.current = false;
+      setAnalizando(false);
+    }
+  }, [onRegistrarIntento, senaActual.id_ejercicio]);
+
+  useEffect(() => {
+    let activo = true;
+    let frame = 0;
+    let ultimo = -1;
+    const iniciar = async () => {
+      try {
+        const vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.2.3/wasm');
+        const landmarker = await HandLandmarker.createFromOptions(vision, {
+          baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task', delegate: 'GPU' },
+          runningMode: 'VIDEO', numHands: 2,
+        });
+        if (!activo) { landmarker.close(); return; }
+        landmarkerRef.current = landmarker;
+        const detectar = () => {
+          if (!activo) return;
+          const video = videoRef.current;
+          const canvas = canvasRef.current;
+          const ctx = canvas?.getContext('2d');
+          if (video && canvas && ctx && video.readyState >= 2 && video.currentTime !== ultimo) {
+            ultimo = video.currentTime;
+            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const manos = landmarker.detectForVideo(video, performance.now()).landmarks;
+            const presente = manos.length > 0;
+            if (presente !== manoPresenteRef.current) {
+              manoPresenteRef.current = presente;
+              setManosDetectadas(presente);
+              if (
+                presente &&
+                !capturaActivaRef.current &&
+                !guardandoRef.current &&
+                !intentoFinalizadoRef.current
+              ) {
+                capturaActivaRef.current = true;
+                setCuenta(5);
+              }
+            }
+            if (capturaActivaRef.current && !presente) {
+              capturaActivaRef.current = false; setCuenta(null); setGuardando(false);
+            }
+            const conexiones = HandLandmarker.HAND_CONNECTIONS;
+            ctx.lineWidth = 3; ctx.strokeStyle = '#34D399'; ctx.fillStyle = '#FDE047';
+            for (const puntos of manos) {
+              for (const { start, end } of conexiones) {
+                ctx.beginPath(); ctx.moveTo(puntos[start].x * canvas.width, puntos[start].y * canvas.height); ctx.lineTo(puntos[end].x * canvas.width, puntos[end].y * canvas.height); ctx.stroke();
+              }
+              for (const p of puntos) { ctx.beginPath(); ctx.arc(p.x * canvas.width, p.y * canvas.height, 4, 0, Math.PI * 2); ctx.fill(); }
+            }
+          }
+          frame = requestAnimationFrame(detectar);
+        };
+        frame = requestAnimationFrame(detectar);
+      } catch { setManosDetectadas(false); }
+    };
+    if (fase === 'CAMARA' && videoReal) void iniciar();
+    return () => { activo = false; cancelAnimationFrame(frame); landmarkerRef.current?.close(); landmarkerRef.current = null; };
+  }, [fase, videoReal]);
+
+  useEffect(() => {
+    if (cuenta === null || !capturaActivaRef.current) return;
+    if (cuenta > 0) {
+      const timer = window.setTimeout(() => setCuenta((n) => n === null ? null : n - 1), 1000);
+      return () => window.clearTimeout(timer);
+    }
+    capturaActivaRef.current = false;
+    setCuenta(null);
+    void registrarIntento(Math.floor(50 + Math.random() * 51));
+  }, [cuenta, registrarIntento]);
+
   useEffect(() => {
     setIntentosFallidos(0);
     setResultado('EXITO_INICIAL');
     setPrecision(88);
     setReferencia('OCULTA');
+    setMostrarResultado(false);
+    setCuentoCompletado(false);
+    setErrorIntento(null);
+    setUltimoIntentoAprobado(false);
+    intentoFinalizadoRef.current = false;
+    setFase('REFERENCIA');
+    setCuentaReferencia(5);
+    setPasoPreparacion(0);
+    setPreparacionPausada(false);
   }, [senaActual.id_ejercicio]);
 
   const encenderCamara = useCallback(async () => {
@@ -149,6 +325,20 @@ export const ModuloLSMView: React.FC<ModuloLSMViewProps> = ({
       setVideoReal(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (fase !== 'REFERENCIA') return;
+    if (cuentaReferencia === 0) {
+      setFase('PREPARACION');
+      return;
+    }
+
+    const timer = window.setTimeout(
+      () => setCuentaReferencia((cuenta) => Math.max(0, cuenta - 1)),
+      1000
+    );
+    return () => window.clearTimeout(timer);
+  }, [fase, cuentaReferencia]);
 
   // Indicador visual de preparación antes de grabar (íconos, sin sonido, sin presión de tiempo, con opción de saltar)
   useEffect(() => {
@@ -170,40 +360,24 @@ export const ModuloLSMView: React.FC<ModuloLSMViewProps> = ({
     return () => clearTimeout(t);
   }, [fase]);
 
-  const evaluarIntento = async (valor: number) => {
-    if (fase !== 'CAMARA') {
-      await encenderCamara();
-    }
-    setAnalizando(true);
+  const evaluarIntento = (valor: number) => {
     setNinoDetectado(true);
-    setReferencia('OCULTA');
-    try {
-      await onRegistrarIntento(senaActual.id_ejercicio, valor);
-      setPrecision(valor);
-      if (valor >= 75) {
-        setResultado('EXITO');
-        setIntentosFallidos(0);
-      } else {
-        setResultado('CASI');
-        setIntentosFallidos((n) => (n >= MAX_INTENTOS ? 1 : n + 1));
-        setReferencia('LENTA');
-      }
-    } finally {
-      setAnalizando(false);
-    }
+    void registrarIntento(valor);
   };
 
-  const handleEvaluarSena = () => {
-    if (fase === 'PREPARACION') {
-      encenderCamara();
-      return;
-    }
-    const acierto = Math.random() >= 0.35;
-    const valor = acierto
-      ? Math.floor(84 + Math.random() * 14)
-      : Math.floor(54 + Math.random() * 18);
-    evaluarIntento(valor);
-  };
+  const ejerciciosCuento = useMemo(
+    () =>
+      cuentos
+        .find((cuento) => cuento.id_cuento === senaActual.id_cuento)
+        ?.ejercicios?.slice()
+        .sort((a, b) => a.orden_en_cuento - b.orden_en_cuento) || [],
+    [cuentos, senaActual.id_cuento]
+  );
+  const indiceActual = ejerciciosCuento.findIndex(
+    (ejercicio) => ejercicio.id_ejercicio === senaActual.id_ejercicio
+  );
+  const tieneSiguienteSena = indiceActual >= 0 && indiceActual < ejerciciosCuento.length - 1;
+  const puedeReintentar = mostrarResultado || errorIntento !== null;
 
   const esCasi = resultado === 'CASI';
 
@@ -293,18 +467,20 @@ export const ModuloLSMView: React.FC<ModuloLSMViewProps> = ({
         </span>
       </div>
 
+      {fase !== 'REFERENCIA' && (
+        <div className="sena-preview-card" aria-label={`Seña: ${senaActual.palabra}`}>
+          {visualSena(true)}
+          <span>{senaActual.palabra}</span>
+        </div>
+      )}
+
       {/* 3. Visor de cámara AR idéntico al Wireframe 3:
              - Etiqueta superior izquierda "EN VIVO · Detección activa"
              - Esquinas guía que cambian al detectar al niño
              - Silueta de mano + pastilla oscura "COLOCA TU MANO AQUÍ" */}
       <div
         className="ar-camera-stage camara-lsm-stage"
-        onClick={() => {
-          if (fase === 'CAMARA' && referencia === 'OCULTA' && !analizando) {
-            handleEvaluarSena();
-          }
-        }}
-        style={{ cursor: fase === 'CAMARA' ? 'pointer' : 'default' }}
+        style={{ cursor: 'default' }}
       >
         <video
           ref={videoRef}
@@ -315,6 +491,7 @@ export const ModuloLSMView: React.FC<ModuloLSMViewProps> = ({
           style={{ display: fase === 'CAMARA' && videoReal ? 'block' : 'none' }}
           aria-label="Cámara activa para practicar la seña"
         />
+        <canvas ref={canvasRef} className="hand-landmarks-canvas" aria-hidden="true" />
 
         {/* Etiqueta "EN VIVO · Detección activa" (Wireframe 3) */}
         <div className="live-pill-mockup">
@@ -333,6 +510,9 @@ export const ModuloLSMView: React.FC<ModuloLSMViewProps> = ({
           </span>
         </div>
 
+        {cuenta !== null && <div className="hand-countdown" role="status" aria-live="assertive">{cuenta}</div>}
+        {guardando && <div className="hand-saving" role="status" aria-live="polite"><span className="hand-loader" aria-hidden="true" />Guardando seña</div>}
+
         {/* Marco con esquinas guía que cambia de aspecto al detectar al niño + "COLOCA TU MANO AQUÍ" */}
         <div
           className={`guia-esquinas ${
@@ -345,6 +525,7 @@ export const ModuloLSMView: React.FC<ModuloLSMViewProps> = ({
           <span className="esq esq-br" />
 
           {/* Silueta de mano guía con puntos articulares (Wireframe 3) */}
+          {cuenta === null && !guardando && <>
           <svg
             width="120"
             height="130"
@@ -375,9 +556,21 @@ export const ModuloLSMView: React.FC<ModuloLSMViewProps> = ({
           </svg>
 
           <span className="guia-pill">COLOCA TU MANO AQUÍ</span>
+          </>}
         </div>
 
         {/* Indicador visual de preparación antes de grabar (íconos, sin sonido, sin presión de tiempo, con opción de saltar) */}
+        {fase === 'REFERENCIA' && (
+          <div className="prep-overlay sena-intro-overlay" role="status" aria-live="polite">
+            <p className="sena-intro-title">Observa la seña</p>
+            <div className="sena-intro-visual">{visualSena()}</div>
+            <p className="sena-intro-word">{senaActual.palabra}</p>
+            <div className="sena-intro-countdown" aria-label={`${cuentaReferencia} segundos`}>
+              {cuentaReferencia}
+            </div>
+          </div>
+        )}
+
         {fase === 'PREPARACION' && (
           <div
             className="prep-overlay"
@@ -454,20 +647,8 @@ export const ModuloLSMView: React.FC<ModuloLSMViewProps> = ({
                 <span aria-hidden="true">💪🌟 </span>¡Casi! Intenta otra vez
               </p>
             )}
-            <div
-              style={{ fontSize: '4.2rem', lineHeight: 1 }}
-              aria-hidden="true"
-            >
-              <span
-                className={
-                  referencia === 'LENTA'
-                    ? 'dix09-reference-playing-slow'
-                    : 'dix09-reference-playing-normal'
-                }
-              >
-                ✋
-              </span>{' '}
-              {iconoSena}
+            <div className="referencia-visual">
+              {visualSena(false, referencia === 'LENTA')}
             </div>
             <span
               className="pill-label"
@@ -497,26 +678,27 @@ export const ModuloLSMView: React.FC<ModuloLSMViewProps> = ({
         )}
       </div>
 
-      {/* Botón grande y siempre visible "Ver seña de nuevo" */}
-      <button
-        type="button"
-        className="btn-primary-aaa"
-        style={{
-          width: '100%',
-          minHeight: '56px',
-          fontSize: '1.05rem',
-          borderRadius: '16px',
-        }}
-        onClick={() => setReferencia('NORMAL')}
-      >
-        <span aria-hidden="true">🔁</span>
-        <span>Ver seña de nuevo</span>
-      </button>
+      {fase !== 'REFERENCIA' && (
+        <button
+          type="button"
+          className="btn-primary-aaa"
+          style={{
+            width: '100%',
+            minHeight: '56px',
+            fontSize: '1.05rem',
+            borderRadius: '16px',
+          }}
+          onClick={() => setReferencia('NORMAL')}
+        >
+          <span aria-hidden="true">🔁</span>
+          <span>Ver seña de nuevo</span>
+        </button>
+      )}
 
       {/* 4. Tarjeta inferior idéntica al Wireframe 3:
              "¡Excelente postura! 88%" con "Calibración base / Coincidencia alta"
              (Cuando la seña no se reconoce cambia a "¡Casi! Intenta otra vez" con hasta 3 intentos sin penalización) */}
-      <div
+      {mostrarResultado && <div
         className="card-aaa"
         style={{
           borderColor: esCasi ? 'var(--warn-border)' : '#10B981',
@@ -562,7 +744,7 @@ export const ModuloLSMView: React.FC<ModuloLSMViewProps> = ({
               {!esNoLector && (
                 <p className="text-support">
                   {esCasi
-                    ? `Intento ${intentosFallidos} de ${MAX_INTENTOS} sin penalización · Mira la seña en cámara lenta`
+                    ? `Intento ${intentosFallidos} de ${MAX_INTENTOS} sin penalización · Puedes volver a ver la seña`
                     : 'Reconocimiento cinemático de mano derecha'}
                 </p>
               )}
@@ -593,7 +775,7 @@ export const ModuloLSMView: React.FC<ModuloLSMViewProps> = ({
             <div className="progress-track-aaa" style={{ height: '10px' }}>
               <div
                 className="progress-fill-success"
-                style={{ width: '100%' }}
+                style={{ width: `${precision}%` }}
               />
             </div>
             <p
@@ -633,7 +815,102 @@ export const ModuloLSMView: React.FC<ModuloLSMViewProps> = ({
             </p>
           </div>
         </div>
-      </div>
+      </div>}
+      {errorIntento && (
+        <div className="card-aaa" role="alert" style={{ borderColor: 'var(--warn-border)' }}>
+          {errorIntento}
+        </div>
+      )}
+      {avisoIntento && (
+        <div className="card-aaa" role="status" style={{ borderColor: 'var(--warn-border)' }}>
+          {avisoIntento}
+        </div>
+      )}
+
+      {cuentoCompletado ? (
+        <div className="cuento-completado-celebracion" role="status" aria-live="polite">
+          <span className="destellos-cuento" aria-hidden="true">✨ ⭐ ✨</span>
+          <h2 className="section-title">¡Terminaste el cuento!</h2>
+          <button
+            type="button"
+            className="btn-primary-aaa"
+            onClick={() => {
+              detenerCamara();
+              onNavigate('CATALOGO_CUENTOS', '/cuentos');
+            }}
+          >
+            Ver cuentos
+          </button>
+          <button
+            type="button"
+            className="btn-secondary-aaa"
+            disabled={analizando}
+            onClick={() => {
+              intentoFinalizadoRef.current = false;
+              manoPresenteRef.current = false;
+              setManosDetectadas(false);
+              setMostrarResultado(false);
+              setErrorIntento(null);
+              setCuentoCompletado(false);
+            }}
+          >
+            Practicar esta seña otra vez
+          </button>
+        </div>
+      ) : puedeReintentar && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <button
+            type="button"
+            className="btn-secondary-aaa"
+            disabled={analizando}
+            onClick={() => {
+              intentoFinalizadoRef.current = false;
+              manoPresenteRef.current = false;
+              setManosDetectadas(false);
+              setReferencia('OCULTA');
+              setMostrarResultado(false);
+              setErrorIntento(null);
+              setUltimoIntentoAprobado(false);
+            }}
+          >
+            Intentar de nuevo
+          </button>
+          {(ultimoIntentoAprobado || senaActual.aprobada) && tieneSiguienteSena && (
+            <button
+              type="button"
+              className="btn-primary-aaa"
+              disabled={analizando}
+              onClick={() => onCambiarSena(senaActual.id_ejercicio, 1)}
+            >
+              Siguiente seña
+            </button>
+          )}
+        </div>
+      )}
+      {cuentoCompletado && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
+          {indiceActual > 0 && (
+            <button
+              type="button"
+              className="btn-secondary-aaa"
+              disabled={analizando}
+              onClick={() => onCambiarSena(senaActual.id_ejercicio, -1)}
+            >
+              Seña anterior
+            </button>
+          )}
+          {tieneSiguienteSena && (
+            <button
+              type="button"
+              className="btn-secondary-aaa"
+              disabled={analizando}
+              onClick={() => onCambiarSena(senaActual.id_ejercicio, 1)}
+            >
+              Practicar siguiente seña
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Modo demostración (?demo=1): botones "Simular acierto/fallo" y etiquetas "(DIX09)" */}
       {modoDemo && (
@@ -644,7 +921,7 @@ export const ModuloLSMView: React.FC<ModuloLSMViewProps> = ({
               type="button"
               className="btn-success-aaa"
               style={{ flex: 1 }}
-              disabled={analizando}
+              disabled={analizando || mostrarResultado || fase !== 'CAMARA'}
               onClick={() => evaluarIntento(88)}
             >
               ✓ Simular acierto
@@ -653,7 +930,7 @@ export const ModuloLSMView: React.FC<ModuloLSMViewProps> = ({
               type="button"
               className="btn-secondary-aaa"
               style={{ flex: 1 }}
-              disabled={analizando}
+              disabled={analizando || mostrarResultado || fase !== 'CAMARA'}
               onClick={() => evaluarIntento(58)}
             >
               ✗ Simular fallo
@@ -677,7 +954,11 @@ export const ModuloLSMView: React.FC<ModuloLSMViewProps> = ({
               onClick={() => {
                 setPasoPreparacion(0);
                 setPreparacionPausada(false);
-                setFase('PREPARACION');
+                detenerCamara();
+                setVideoReal(false);
+                setReferencia('OCULTA');
+                setCuentaReferencia(5);
+                setFase('REFERENCIA');
               }}
             >
               🖐️ Repetir preparación (DIX09)

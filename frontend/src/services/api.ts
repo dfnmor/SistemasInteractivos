@@ -90,35 +90,20 @@ export async function fetchCuentos(params?: {
   return json.data;
 }
 
-export async function guardarProgresoCuento(
-  id_cuento: number,
-  id_perfil: number,
-  puntos_obtenidos = 30,
-  estado: 'EN_PROGRESO' | 'COMPLETADO' = 'COMPLETADO'
-): Promise<void> {
-  const res = await fetch(`${API_BASE}/cuentos/${id_cuento}/progreso`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      id_perfil,
-      estado,
-      puntos_obtenidos,
-    }),
-  });
-  if (!res.ok) throw new Error('Error al guardar progreso del cuento');
-}
-
 export async function enviarMetricaIntento(payload: {
   id_perfil: number;
   id_ejercicio: number;
   porcentaje_precision: number;
 }): Promise<{
+  source?: 'postgresql' | 'in-memory-fallback';
   puntos_acumulados_actualizados?: number;
   retroalimentacion: {
     titulo: string;
     mensaje: string;
     icono: string;
   };
+  cuento_completado?: boolean;
+  id_cuento?: number;
   data?: MetricaIntento;
 }> {
   const res = await fetch(`${API_BASE}/metricas`, {

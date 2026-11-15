@@ -58,6 +58,8 @@ export interface EjercicioCuento {
   patron_referencia_id: number;
   palabra_o_sena: string;
   orden_en_cuento: number;
+  imagen_sena?: string | null;
+  aprobada?: boolean;
 }
 
 /**
@@ -128,4 +130,3 @@ export interface CanjeRecompensa {
   icono_url?: string;
   costo_puntos?: number;
 }
-

@@ -83,7 +83,8 @@ CREATE TABLE TABLA_EJERCICIO_CUENTO (
     id_cuento INT NOT NULL REFERENCES TABLA_CUENTO(id_cuento) ON DELETE CASCADE,
     patron_referencia_id INT NOT NULL,
     palabra_o_sena VARCHAR(200) NOT NULL,
-    orden_en_cuento INT NOT NULL
+    orden_en_cuento INT NOT NULL,
+    imagen_sena VARCHAR(500)
 );
 
 CREATE TABLE TABLA_PROGRESO_CUENTO (

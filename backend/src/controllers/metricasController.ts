@@ -1,17 +1,23 @@
 import { Request, Response } from 'express';
-import { query, fallbackStore } from '../config/db';
+import { PoolClient } from 'pg';
+import { pool, query, fallbackStore } from '../config/db';
 import { MetricaIntento, ResultadoIntento } from '../models/types';
 
 /**
  * CU-05 / CU-06 / RF-07 / RNF-08 / DIX09:
  * Registrar cada intento en TABLA_METRICA_INTENTO vía API.
- * - Si porcentaje_precision >= 75 -> CORRECTO (+25 puntos sumados en TABLA_PERFIL)
- * - Si porcentaje_precision < 75  -> REINTENTO (0 puntos, sin penalización, mensaje "¡Casi! Intenta otra vez")
+ * - Si porcentaje_precision > 60 -> CORRECTO (+25 puntos en la primera aprobación)
+ * - Si porcentaje_precision <= 60 -> REINTENTO (0 puntos, sin penalización)
  */
 export const registrarMetricaIntento = async (req: Request, res: Response): Promise<void> => {
   const { id_perfil, id_ejercicio, porcentaje_precision } = req.body;
 
-  if (!id_perfil || !id_ejercicio || porcentaje_precision === undefined) {
+  if (
+    !id_perfil ||
+    !id_ejercicio ||
+    porcentaje_precision === undefined ||
+    !Number.isFinite(Number(porcentaje_precision))
+  ) {
     res.status(400).json({
       error: 'Se requieren id_perfil, id_ejercicio y porcentaje_precision',
     });
@@ -19,14 +25,14 @@ export const registrarMetricaIntento = async (req: Request, res: Response): Prom
   }
 
   const precision = Math.min(100, Math.max(0, Number(porcentaje_precision)));
-  const resultado: ResultadoIntento = precision >= 75 ? 'CORRECTO' : 'REINTENTO';
-  const puntosOtorgados = resultado === 'CORRECTO' ? 25 : 0;
+  const aprobado = precision > 60;
+  const resultado: ResultadoIntento = aprobado ? 'CORRECTO' : 'REINTENTO';
 
   const retroalimentacionDUA =
     resultado === 'CORRECTO'
       ? {
           titulo: '¡Excelente! Seña reconocida correctamente',
-          mensaje: `Lograste una precisión del ${precision.toFixed(0)}%. ¡Ganaste +${puntosOtorgados} puntos en tu perfil!`,
+          mensaje: `Lograste una precisión del ${precision.toFixed(0)}%.`,
           icono: '🌟',
           nivelConfort: 'ZONA_SEGURA',
         }
@@ -37,8 +43,71 @@ export const registrarMetricaIntento = async (req: Request, res: Response): Prom
           nivelConfort: 'ZONA_SEGURA',
         };
 
+  let client: PoolClient | undefined;
   try {
-    const insertRes = await query<MetricaIntento>(
+    client = await pool.connect();
+    await client.query('BEGIN');
+
+    const ejercicioRes = await client.query<{
+      id_cuento: number;
+      orden_dificultad: number;
+    }>(
+      `SELECT e.id_cuento, c.orden_dificultad
+       FROM TABLA_EJERCICIO_CUENTO e
+       JOIN TABLA_CUENTO c ON c.id_cuento = e.id_cuento
+       WHERE e.id_ejercicio = $1`,
+      [Number(id_ejercicio)]
+    );
+    if (ejercicioRes.rowCount === 0) {
+      await client.query('ROLLBACK');
+      res.status(404).json({ error: 'Ejercicio no encontrado' });
+      return;
+    }
+
+    const idCuento = ejercicioRes.rows[0].id_cuento;
+    const nivel = ejercicioRes.rows[0].orden_dificultad;
+    if (nivel > 1) {
+      const nivelAnterior = await client.query<{ total: number; completados: number }>(
+        `SELECT
+           COUNT(*)::int AS total,
+           COUNT(*) FILTER (
+             WHERE NOT EXISTS (
+               SELECT 1
+               FROM TABLA_EJERCICIO_CUENTO e
+               WHERE e.id_cuento = c.id_cuento
+                 AND NOT EXISTS (
+                   SELECT 1
+                   FROM TABLA_METRICA_INTENTO m
+                   WHERE m.id_perfil = $1
+                     AND m.id_ejercicio = e.id_ejercicio
+                     AND m.porcentaje_precision > 60
+                 )
+             )
+           )::int AS completados
+         FROM TABLA_CUENTO c
+         WHERE c.activo = TRUE AND c.orden_dificultad = $2`,
+        [Number(id_perfil), nivel - 1]
+      );
+      if (
+        nivelAnterior.rows[0].total > 0 &&
+        nivelAnterior.rows[0].completados !== nivelAnterior.rows[0].total
+      ) {
+        await client.query('ROLLBACK');
+        res.status(403).json({ error: 'Completa todos los cuentos del nivel anterior primero' });
+        return;
+      }
+    }
+
+    const aprobacionAnterior = await client.query(
+      `SELECT 1
+       FROM TABLA_METRICA_INTENTO
+       WHERE id_perfil = $1 AND id_ejercicio = $2 AND porcentaje_precision > 60
+       LIMIT 1`,
+      [Number(id_perfil), Number(id_ejercicio)]
+    );
+    const puntosOtorgados =
+      aprobado && aprobacionAnterior.rowCount === 0 ? 25 : 0;
+    const insertRes = await client.query<MetricaIntento>(
       `INSERT INTO TABLA_METRICA_INTENTO
          (id_perfil, id_ejercicio, porcentaje_precision, resultado, puntos_otorgados, fecha_hora)
        VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
@@ -46,7 +115,7 @@ export const registrarMetricaIntento = async (req: Request, res: Response): Prom
       [Number(id_perfil), Number(id_ejercicio), precision, resultado, puntosOtorgados]
     );
 
-    const perfilRes = await query(
+    const perfilRes = await client.query(
       `UPDATE TABLA_PERFIL
        SET puntos_acumulados = puntos_acumulados + $1
        WHERE id_perfil = $2
@@ -54,32 +123,112 @@ export const registrarMetricaIntento = async (req: Request, res: Response): Prom
       [puntosOtorgados, Number(id_perfil)]
     );
 
-    // Actualizar o registrar automáticamente el progreso del cuento asociado al ejercicio
-    const ejRes = await query<{ id_cuento: number }>(
-      'SELECT id_cuento FROM TABLA_EJERCICIO_CUENTO WHERE id_ejercicio = $1',
-      [Number(id_ejercicio)]
+    const progresoRes = await client.query<{ total: number; aprobados: number }>(
+      `SELECT
+         COUNT(*)::int AS total,
+         COUNT(*) FILTER (
+           WHERE EXISTS (
+             SELECT 1
+             FROM TABLA_METRICA_INTENTO m
+             WHERE m.id_perfil = $1
+               AND m.id_ejercicio = e.id_ejercicio
+               AND m.porcentaje_precision > 60
+           )
+         )::int AS aprobados
+       FROM TABLA_EJERCICIO_CUENTO e
+       WHERE e.id_cuento = $2`,
+      [Number(id_perfil), idCuento]
     );
-    if ((ejRes.rowCount ?? 0) > 0) {
-      const idCuento = ejRes.rows[0].id_cuento;
-      await query(
-        `INSERT INTO TABLA_PROGRESO_CUENTO (id_perfil, id_cuento, estado, puntos_obtenidos, fecha_completado)
-         VALUES ($1, $2, 'EN_PROGRESO', $3, NULL)
-         ON CONFLICT (id_perfil, id_cuento)
-         DO UPDATE SET
-           puntos_obtenidos = TABLA_PROGRESO_CUENTO.puntos_obtenidos + $3`,
-        [Number(id_perfil), idCuento, puntosOtorgados]
-      );
-    }
+    const cuentoCompletado =
+      progresoRes.rows[0].total > 0 &&
+      progresoRes.rows[0].aprobados === progresoRes.rows[0].total;
 
+    await client.query(
+      `INSERT INTO TABLA_PROGRESO_CUENTO
+         (id_perfil, id_cuento, estado, puntos_obtenidos, fecha_completado)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (id_perfil, id_cuento)
+       DO UPDATE SET
+         estado = EXCLUDED.estado,
+         puntos_obtenidos = TABLA_PROGRESO_CUENTO.puntos_obtenidos + EXCLUDED.puntos_obtenidos,
+         fecha_completado = CASE
+           WHEN EXCLUDED.estado = 'COMPLETADO'
+             THEN COALESCE(TABLA_PROGRESO_CUENTO.fecha_completado, EXCLUDED.fecha_completado)
+           ELSE NULL
+         END`,
+      [
+        Number(id_perfil),
+        idCuento,
+        cuentoCompletado ? 'COMPLETADO' : 'EN_PROGRESO',
+        puntosOtorgados,
+        cuentoCompletado ? new Date().toISOString() : null,
+      ]
+    );
+
+    await client.query('COMMIT');
     res.status(201).json({
       source: 'postgresql',
       data: insertRes.rows[0],
+      id_cuento: idCuento,
+      cuento_completado: cuentoCompletado,
       puntos_acumulados_actualizados: perfilRes.rows[0]?.puntos_acumulados,
       retroalimentacion: retroalimentacionDUA,
     });
   } catch (_err) {
+    if (client) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackError) {
+        console.error('[Métricas] No se pudo revertir la transacción:', rollbackError);
+      }
+    }
     const nextId =
       fallbackStore.metricas.reduce((max, m) => Math.max(max, m.id_intento), 0) + 1;
+    const ejercicio = fallbackStore.ejercicios.find(
+      (e) => e.id_ejercicio === Number(id_ejercicio)
+    );
+    if (!ejercicio) {
+      res.status(404).json({ error: 'Ejercicio no encontrado' });
+      return;
+    }
+    const cuentoEjercicio = fallbackStore.cuentos.find(
+      (cuento) => cuento.id_cuento === ejercicio.id_cuento
+    );
+    if (cuentoEjercicio && cuentoEjercicio.orden_dificultad > 1) {
+      const cuentosNivelAnterior = fallbackStore.cuentos.filter(
+        (cuento) =>
+          cuento.activo &&
+          cuento.orden_dificultad === cuentoEjercicio.orden_dificultad - 1
+      );
+      const nivelAnteriorCompleto = cuentosNivelAnterior.every((cuento) => {
+        const ejercicios = fallbackStore.ejercicios.filter(
+          (item) => item.id_cuento === cuento.id_cuento
+        );
+        return (
+          ejercicios.length > 0 &&
+          ejercicios.every((item) =>
+            fallbackStore.metricas.some(
+              (metrica) =>
+                metrica.id_perfil === Number(id_perfil) &&
+                metrica.id_ejercicio === item.id_ejercicio &&
+                metrica.porcentaje_precision > 60
+            )
+          )
+        );
+      });
+      if (cuentosNivelAnterior.length > 0 && !nivelAnteriorCompleto) {
+        res.status(403).json({ error: 'Completa todos los cuentos del nivel anterior primero' });
+        return;
+      }
+    }
+    const aprobacionAnterior = fallbackStore.metricas.some(
+      (m) =>
+        m.id_perfil === Number(id_perfil) &&
+        m.id_ejercicio === Number(id_ejercicio) &&
+        m.porcentaje_precision > 60
+    );
+    const puntosOtorgados =
+      aprobado && !aprobacionAnterior ? 25 : 0;
     const nuevaMetrica: MetricaIntento = {
       id_intento: nextId,
       id_perfil: Number(id_perfil),
@@ -96,12 +245,55 @@ export const registrarMetricaIntento = async (req: Request, res: Response): Prom
       perfil.puntos_acumulados += puntosOtorgados;
     }
 
+    const ejerciciosCuento = fallbackStore.ejercicios.filter(
+      (e) => e.id_cuento === ejercicio.id_cuento
+    );
+    const aprobadosCuento = ejerciciosCuento.filter((e) =>
+      fallbackStore.metricas.some(
+        (m) =>
+          m.id_perfil === Number(id_perfil) &&
+          m.id_ejercicio === e.id_ejercicio &&
+          m.porcentaje_precision > 60
+      )
+    ).length;
+    const cuentoCompletado =
+      ejerciciosCuento.length > 0 && aprobadosCuento === ejerciciosCuento.length;
+    const progreso = fallbackStore.progresos.find(
+      (p) =>
+        p.id_perfil === Number(id_perfil) &&
+        p.id_cuento === ejercicio.id_cuento
+    );
+    if (progreso) {
+      progreso.estado = cuentoCompletado ? 'COMPLETADO' : 'EN_PROGRESO';
+      progreso.puntos_obtenidos += puntosOtorgados;
+      progreso.fecha_completado = cuentoCompletado
+        ? progreso.fecha_completado || new Date().toISOString()
+        : null;
+    } else {
+      fallbackStore.progresos.push({
+        id_progreso:
+          fallbackStore.progresos.reduce(
+            (max, p) => Math.max(max, p.id_progreso),
+            0
+          ) + 1,
+        id_perfil: Number(id_perfil),
+        id_cuento: ejercicio.id_cuento,
+        estado: cuentoCompletado ? 'COMPLETADO' : 'EN_PROGRESO',
+        puntos_obtenidos: puntosOtorgados,
+        fecha_completado: cuentoCompletado ? new Date().toISOString() : null,
+      });
+    }
+
     res.status(201).json({
       source: 'in-memory-fallback',
       data: nuevaMetrica,
+      id_cuento: ejercicio.id_cuento,
+      cuento_completado: cuentoCompletado,
       puntos_acumulados_actualizados: perfil?.puntos_acumulados ?? puntosOtorgados,
       retroalimentacion: retroalimentacionDUA,
     });
+  } finally {
+    client?.release();
   }
 };
 

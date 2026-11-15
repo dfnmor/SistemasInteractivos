@@ -30,7 +30,10 @@ interface ModuloArticulacionViewProps {
     titulo: string;
     mensaje: string;
     icono: string;
+    cuento_completado?: boolean;
+    aviso?: string;
   }>;
+  onCambiarSena: (idEjercicio: number, direccion: -1 | 1) => void;
   onNavigate: (vista: VistaActiva, path?: string) => void;
 }
 
@@ -87,6 +90,7 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
   palabraInicial,
   modoDemo = false,
   onRegistrarIntento,
+  onCambiarSena,
   onNavigate,
 }) => {
   const esNoLector = perfilActivo.nivel_lectura === 'NO_LECTOR';
@@ -106,6 +110,8 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
             .map((e) => ({
               id_ejercicio: e.id_ejercicio,
               palabra: e.palabra_o_sena,
+              id_cuento: c.id_cuento,
+              aprobada: Boolean(e.aprobada),
             }))
         ),
     [cuentos]
@@ -120,7 +126,12 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
     setIndice(i >= 0 ? i : 0);
   }, [palabras, palabraInicial]);
 
-  const actual = palabras[indice] || { id_ejercicio: 7, palabra: 'MA-MÁ' };
+  const actual = palabras[indice] || {
+    id_ejercicio: 7,
+    palabra: 'MA-MÁ',
+    id_cuento: undefined,
+    aprobada: false,
+  };
   const info = infoDe(actual.palabra);
 
   const [lento, setLento] = useState(false);
@@ -128,8 +139,12 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
   const [modeloReproduciendo, setModeloReproduciendo] = useState(true);
   const [camaraOk, setCamaraOk] = useState(false);
   const [comprobando, setComprobando] = useState(false);
-  const [precision, setPrecision] = useState<number>(92);
+  const [precision, setPrecision] = useState<number>(0);
   const [resultado, setResultado] = useState<'EXITO' | 'CASI'>('EXITO');
+  const [mostrarResultado, setMostrarResultado] = useState(false);
+  const [cuentoCompletado, setCuentoCompletado] = useState(false);
+  const [errorIntento, setErrorIntento] = useState<string | null>(null);
+  const [avisoIntento, setAvisoIntento] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -164,18 +179,47 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
     };
   }, []);
 
+  useEffect(() => {
+    setComprobando(false);
+    setPrecision(0);
+    setResultado('EXITO');
+    setMostrarResultado(false);
+    setCuentoCompletado(false);
+    setErrorIntento(null);
+    setAvisoIntento(null);
+    setLento(false);
+    setModeloReproduciendo(true);
+  }, [actual.id_ejercicio]);
+
   const comprobar = async (valor: number) => {
+    const inicio = Date.now();
     setComprobando(true);
+    setMostrarResultado(false);
+    setErrorIntento(null);
+    setAvisoIntento(null);
     try {
-      await onRegistrarIntento(actual.id_ejercicio, valor);
+      const resultadoGuardado = await onRegistrarIntento(actual.id_ejercicio, valor);
+      const esperaRestante = 1000 - (Date.now() - inicio);
+      if (esperaRestante > 0) {
+        await new Promise((resolve) => window.setTimeout(resolve, esperaRestante));
+      }
       setPrecision(valor);
-      if (valor >= 75) {
+      setCuentoCompletado(Boolean(resultadoGuardado.cuento_completado));
+      setAvisoIntento(resultadoGuardado.aviso || null);
+      setMostrarResultado(true);
+      if (valor > 60) {
         setResultado('EXITO');
         setLento(false);
       } else {
         setResultado('CASI');
         setLento(true);
       }
+    } catch (error) {
+      setErrorIntento(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo guardar el resultado. Intenta de nuevo.'
+      );
     } finally {
       setComprobando(false);
     }
@@ -189,6 +233,15 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
         : Math.floor(54 + Math.random() * 18)
     );
   };
+  const ejerciciosCuento = cuentos
+    .find((cuento) => cuento.id_cuento === actual.id_cuento)
+    ?.ejercicios?.slice()
+    .sort((a, b) => a.orden_en_cuento - b.orden_en_cuento) || [];
+  const indiceActual = ejerciciosCuento.findIndex(
+    (ejercicio) => ejercicio.id_ejercicio === actual.id_ejercicio
+  );
+  const tieneSiguiente = indiceActual >= 0 && indiceActual < ejerciciosCuento.length - 1;
+  const tieneAnterior = indiceActual > 0;
 
   return (
     <section
@@ -479,11 +532,15 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
                 fontSize: '0.8rem',
                 marginBottom: '4px',
                 color:
-                  resultado === 'CASI' ? 'var(--warn-text)' : '#047857',
+                  mostrarResultado && resultado === 'CASI'
+                    ? 'var(--warn-text)'
+                    : '#047857',
                 textAlign: 'right',
               }}
             >
-              {esNoLector
+              {!mostrarResultado
+                ? 'Listo para practicar'
+                : esNoLector
                 ? '✓ OK'
                 : resultado === 'CASI'
                 ? '¡Intenta otra vez!'
@@ -492,7 +549,7 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
             <div className="progress-track-aaa" style={{ height: '10px' }}>
               <div
                 className={
-                  resultado === 'CASI'
+                  !mostrarResultado || resultado === 'CASI'
                     ? 'progress-fill-aaa'
                     : 'progress-fill-success'
                 }
@@ -540,7 +597,7 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
           className="btn-primary-aaa"
           style={{ minHeight: '60px', borderRadius: '16px' }}
           onClick={handleListo}
-          disabled={comprobando}
+          disabled={comprobando || mostrarResultado}
         >
           <span aria-hidden="true">✓</span>
           <span>{comprobando ? 'Comprobando…' : '¡Listo! Comprobar'}</span>
@@ -549,7 +606,24 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
 
       {/* 6. Tarjeta verde menta inferior idéntica al Wireframe 4:
              "😊 ¡Excelente sellado labial! Tus labios hicieron el contacto perfecto para 'MA'." */}
-      <div
+      {comprobando && (
+        <div className="result-saving" role="status" aria-live="polite">
+          <span className="hand-loader" aria-hidden="true" />
+          Guardando resultado…
+        </div>
+      )}
+      {errorIntento && (
+        <div className="card-aaa" role="alert" style={{ borderColor: 'var(--warn-border)' }}>
+          {errorIntento}
+        </div>
+      )}
+      {avisoIntento && (
+        <div className="card-aaa" role="status" style={{ borderColor: 'var(--warn-border)' }}>
+          {avisoIntento}
+        </div>
+      )}
+
+      {mostrarResultado && <div
         className="card-aaa"
         role="status"
         aria-live="polite"
@@ -586,8 +660,81 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
               </p>
             )}
           </div>
+          <strong style={{ fontSize: '1.35rem', whiteSpace: 'nowrap' }}>
+            ✨ {precision}%
+          </strong>
         </div>
-      </div>
+      </div>}
+
+      {cuentoCompletado ? (
+        <div className="cuento-completado-celebracion" role="status" aria-live="polite">
+          <span className="destellos-cuento" aria-hidden="true">✨ ⭐ ✨</span>
+          <h2 className="section-title">¡Terminaste el cuento!</h2>
+          <button
+            type="button"
+            className="btn-primary-aaa"
+            onClick={() => onNavigate('CATALOGO_CUENTOS', '/cuentos')}
+          >
+            Ver cuentos
+          </button>
+          <button
+            type="button"
+            className="btn-secondary-aaa"
+            disabled={comprobando}
+            onClick={() => {
+              setMostrarResultado(false);
+              setCuentoCompletado(false);
+              setErrorIntento(null);
+            }}
+          >
+            Practicar esta seña otra vez
+          </button>
+        </div>
+      ) : mostrarResultado && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <button
+            type="button"
+            className="btn-secondary-aaa"
+            onClick={() => {
+              setMostrarResultado(false);
+              setErrorIntento(null);
+            }}
+          >
+            Intentar de nuevo
+          </button>
+          {(precision > 60 || actual.aprobada) && tieneSiguiente && (
+            <button
+              type="button"
+              className="btn-primary-aaa"
+              onClick={() => onCambiarSena(actual.id_ejercicio, 1)}
+            >
+              Siguiente seña
+            </button>
+          )}
+        </div>
+      )}
+      {cuentoCompletado && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
+          {tieneAnterior && (
+            <button
+              type="button"
+              className="btn-secondary-aaa"
+              onClick={() => onCambiarSena(actual.id_ejercicio, -1)}
+            >
+              Seña anterior
+            </button>
+          )}
+          {tieneSiguiente && (
+            <button
+              type="button"
+              className="btn-secondary-aaa"
+              onClick={() => onCambiarSena(actual.id_ejercicio, 1)}
+            >
+              Practicar siguiente seña
+            </button>
+          )}
+        </div>
+      )}
 
       {modoDemo && (
         <div className="demo-panel">
@@ -597,7 +744,7 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
               type="button"
               className="btn-success-aaa"
               style={{ flex: 1 }}
-              disabled={comprobando}
+              disabled={comprobando || mostrarResultado}
               onClick={() => comprobar(94)}
             >
               ✓ Simular acierto
@@ -606,7 +753,7 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
               type="button"
               className="btn-secondary-aaa"
               style={{ flex: 1 }}
-              disabled={comprobando}
+              disabled={comprobando || mostrarResultado}
               onClick={() => comprobar(60)}
             >
               ✗ Simular fallo
