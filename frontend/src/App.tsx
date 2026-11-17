@@ -191,20 +191,20 @@ export const App: React.FC = () => {
       id_ejercicio: idEjercicio,
       porcentaje_precision: precision,
     });
-    const avisos: string[] = [];
-    if (res.source === 'in-memory-fallback') {
-      avisos.push('La base de datos no está disponible; este intento solo se conserva en memoria.');
+    if (typeof res.puntos_acumulados_actualizados === 'number') {
+      setPerfilActivo((prev) => ({
+        ...prev,
+        puntos_acumulados: res.puntos_acumulados_actualizados!,
+      }));
     }
     try {
       await cargarDatosPerfil(perfilActivo.id_perfil);
     } catch (error) {
-      console.error('[App] El intento se guardó, pero no se pudo actualizar el catálogo:', error);
-      avisos.push('El intento se guardó, pero no se pudo actualizar el catálogo.');
+      console.error('[App] Error al refrescar datos del perfil:', error);
     }
     return {
       ...res.retroalimentacion,
       cuento_completado: res.cuento_completado,
-      aviso: avisos.join(' '),
     };
   }, [cargarDatosPerfil, perfilActivo.id_perfil]);
 

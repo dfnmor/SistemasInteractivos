@@ -65,38 +65,6 @@ export const registrarMetricaIntento = async (req: Request, res: Response): Prom
     }
 
     const idCuento = ejercicioRes.rows[0].id_cuento;
-    const nivel = ejercicioRes.rows[0].orden_dificultad;
-    if (nivel > 1) {
-      const nivelAnterior = await client.query<{ total: number; completados: number }>(
-        `SELECT
-           COUNT(*)::int AS total,
-           COUNT(*) FILTER (
-             WHERE NOT EXISTS (
-               SELECT 1
-               FROM TABLA_EJERCICIO_CUENTO e
-               WHERE e.id_cuento = c.id_cuento
-                 AND NOT EXISTS (
-                   SELECT 1
-                   FROM TABLA_METRICA_INTENTO m
-                   WHERE m.id_perfil = $1
-                     AND m.id_ejercicio = e.id_ejercicio
-                     AND m.porcentaje_precision > 60
-                 )
-             )
-           )::int AS completados
-         FROM TABLA_CUENTO c
-         WHERE c.activo = TRUE AND c.orden_dificultad = $2`,
-        [Number(id_perfil), nivel - 1]
-      );
-      if (
-        nivelAnterior.rows[0].total > 0 &&
-        nivelAnterior.rows[0].completados !== nivelAnterior.rows[0].total
-      ) {
-        await client.query('ROLLBACK');
-        res.status(403).json({ error: 'Completa todos los cuentos del nivel anterior primero' });
-        return;
-      }
-    }
 
     const aprobacionAnterior = await client.query(
       `SELECT 1
@@ -105,8 +73,11 @@ export const registrarMetricaIntento = async (req: Request, res: Response): Prom
        LIMIT 1`,
       [Number(id_perfil), Number(id_ejercicio)]
     );
-    const puntosOtorgados =
-      aprobado && aprobacionAnterior.rowCount === 0 ? 25 : 0;
+    const puntosOtorgados = !aprobado
+      ? 0
+      : aprobacionAnterior.rowCount === 0
+      ? 25
+      : 10;
     const insertRes = await client.query<MetricaIntento>(
       `INSERT INTO TABLA_METRICA_INTENTO
          (id_perfil, id_ejercicio, porcentaje_precision, resultado, puntos_otorgados, fecha_hora)
@@ -191,44 +162,13 @@ export const registrarMetricaIntento = async (req: Request, res: Response): Prom
       res.status(404).json({ error: 'Ejercicio no encontrado' });
       return;
     }
-    const cuentoEjercicio = fallbackStore.cuentos.find(
-      (cuento) => cuento.id_cuento === ejercicio.id_cuento
-    );
-    if (cuentoEjercicio && cuentoEjercicio.orden_dificultad > 1) {
-      const cuentosNivelAnterior = fallbackStore.cuentos.filter(
-        (cuento) =>
-          cuento.activo &&
-          cuento.orden_dificultad === cuentoEjercicio.orden_dificultad - 1
-      );
-      const nivelAnteriorCompleto = cuentosNivelAnterior.every((cuento) => {
-        const ejercicios = fallbackStore.ejercicios.filter(
-          (item) => item.id_cuento === cuento.id_cuento
-        );
-        return (
-          ejercicios.length > 0 &&
-          ejercicios.every((item) =>
-            fallbackStore.metricas.some(
-              (metrica) =>
-                metrica.id_perfil === Number(id_perfil) &&
-                metrica.id_ejercicio === item.id_ejercicio &&
-                metrica.porcentaje_precision > 60
-            )
-          )
-        );
-      });
-      if (cuentosNivelAnterior.length > 0 && !nivelAnteriorCompleto) {
-        res.status(403).json({ error: 'Completa todos los cuentos del nivel anterior primero' });
-        return;
-      }
-    }
     const aprobacionAnterior = fallbackStore.metricas.some(
       (m) =>
         m.id_perfil === Number(id_perfil) &&
         m.id_ejercicio === Number(id_ejercicio) &&
         m.porcentaje_precision > 60
     );
-    const puntosOtorgados =
-      aprobado && !aprobacionAnterior ? 25 : 0;
+    const puntosOtorgados = !aprobado ? 0 : !aprobacionAnterior ? 25 : 10;
     const nuevaMetrica: MetricaIntento = {
       id_intento: nextId,
       id_perfil: Number(id_perfil),

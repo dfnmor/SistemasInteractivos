@@ -14,7 +14,7 @@ const PORT = Number(process.env.PORT) || 5174;
 
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || '*',
+    origin: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   })
 );

@@ -6,6 +6,7 @@ import {
   TipoCuento,
   VistaActiva,
 } from '../types/meexuu';
+import { obtenerReglaSenaLSM } from '../utils/lsmClassifier';
 
 /* =============================================================================
  * CATÁLOGO DE CUENTOS LSM Y NARRATIVA
@@ -83,6 +84,7 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
       .sort((a, b) => a.orden_en_cuento - b.orden_en_cuento);
     const total = Math.max(ejercicios.length, 1);
     const ej = ejercicios[escena];
+    const reglaEscena = ej ? obtenerReglaSenaLSM(ej.palabra_o_sena) : null;
     const aprobadas = ejercicios.filter((ejercicio) => ejercicio.aprobada).length;
     const cuentoCompleto = ejercicios.length > 0 && aprobadas === ejercicios.length;
     const avance = Math.round((aprobadas / total) * 100);
@@ -123,12 +125,35 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
             alignItems: 'center',
             justifyContent: 'center',
             gap: '14px',
-            padding: '24px',
+            padding: '20px',
           }}
         >
-          <div style={{ fontSize: '4.6rem', lineHeight: 1 }} aria-hidden="true">
-            {cuentoAbierto.imagen_portada || '🐰🌙'}
-          </div>
+          {cuentoAbierto.tipo === 'LSM' && reglaEscena?.youtubeId ? (
+            <div
+              style={{
+                width: '100%',
+                maxWidth: '420px',
+                borderRadius: '14px',
+                overflow: 'hidden',
+                border: '2px solid #0F172A',
+                backgroundColor: '#000',
+              }}
+            >
+              <iframe
+                width="100%"
+                height="220"
+                src={`https://www.youtube.com/embed/${reglaEscena.youtubeId}?rel=0`}
+                title={`Video WikiSigns LSM: ${ej?.palabra_o_sena}`}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                style={{ display: 'block', border: 0 }}
+              />
+            </div>
+          ) : (
+            <div style={{ fontSize: '4.6rem', lineHeight: 1 }} aria-hidden="true">
+              {cuentoAbierto.imagen_portada || '🐰🌙'}
+            </div>
+          )}
           {ej && (
             <span
               className="pill-label"
@@ -161,6 +186,9 @@ export const CatalogoCuentosView: React.FC<CatalogoCuentosViewProps> = ({
                 <p className="text-support">
                   Escena {escena + 1} de {total}: aprende la seña{' '}
                   <strong>&ldquo;{ej.palabra_o_sena}&rdquo;</strong>
+                  {cuentoAbierto.tipo === 'LSM' && reglaEscena
+                    ? ` — ${reglaEscena.instruccionCorta}`
+                    : ''}
                 </p>
               )}
             </>
