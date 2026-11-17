@@ -331,6 +331,9 @@ export const ModuloLSMView: React.FC<ModuloLSMViewProps> = ({
     let frame = 0;
     let ultimo = -1;
     let frameCounter = 0;
+    let prevWristX: number | null = null;
+    let prevWristY: number | null = null;
+    let movimientoSuavizado = 0;
 
     const iniciar = async () => {
       try {
@@ -394,14 +397,35 @@ export const ModuloLSMView: React.FC<ModuloLSMViewProps> = ({
             if (capturaActivaRef.current && !presente) {
               capturaActivaRef.current = false;
               muestrasPrecisionRef.current = [];
+              precisionEnVivoRef.current = 0;
+              setPrecisionEnVivo(0);
               setCuenta(null);
               setGuardando(false);
             }
 
+            if (!presente) {
+              prevWristX = null;
+              prevWristY = null;
+              movimientoSuavizado = 0;
+              precisionEnVivoRef.current = 0;
+            }
+
             if (presente) {
+              const wrist = manos[0][0];
+              if (prevWristX !== null && prevWristY !== null) {
+                const delta = Math.hypot(
+                  wrist.x - prevWristX,
+                  wrist.y - prevWristY
+                );
+                movimientoSuavizado = movimientoSuavizado * 0.75 + delta * 0.25;
+              }
+              prevWristX = wrist.x;
+              prevWristY = wrist.y;
+
               const evaluacion = evaluarManoContraSena(
                 palabraObjetivoRef.current,
-                manos
+                manos,
+                movimientoSuavizado
               );
 
               precisionEnVivoRef.current = evaluacion.porcentajeCoincidencia;
@@ -494,14 +518,14 @@ export const ModuloLSMView: React.FC<ModuloLSMViewProps> = ({
     capturaActivaRef.current = false;
     setCuenta(null);
 
-    const muestras = muestrasPrecisionRef.current.slice();
-    let calificacionFinal = precisionEnVivoRef.current || 75;
+    // Evaluar la postura sostenida en los últimos cuadros de la captura (sin inflar si la seña es incorrecta)
+    const muestras = muestrasPrecisionRef.current.slice(-24);
+    let calificacionFinal = precisionEnVivoRef.current;
     if (muestras.length > 0) {
-      muestras.sort((a, b) => b - a);
-      const topCount = Math.max(1, Math.ceil(muestras.length * 0.45));
-      const topSlice = muestras.slice(0, topCount);
+      const promedioReciente =
+        muestras.reduce((acc, v) => acc + v, 0) / muestras.length;
       calificacionFinal = Math.round(
-        topSlice.reduce((acc, v) => acc + v, 0) / topSlice.length
+        promedioReciente * 0.65 + precisionEnVivoRef.current * 0.35
       );
     }
     void registrarIntento(calificacionFinal);
@@ -890,10 +914,10 @@ export const ModuloLSMView: React.FC<ModuloLSMViewProps> = ({
           </div>
         )}
 
-        {/* Marco con esquinas guía que cambia de aspecto al detectar al niño + "COLOCA TU MANO AQUÍ" */}
+        {/* Marco con esquinas guía que se ilumina en verde cuando la postura de la seña es correcta (>60%) */}
         <div
           className={`guia-esquinas ${
-            ninoDetectado ? 'detectado' : 'esperando'
+            manosDetectadas && precisionEnVivo > 60 ? 'detectado' : 'esperando'
           }`}
         >
           <span className="esq esq-tl" />
@@ -1167,23 +1191,18 @@ export const ModuloLSMView: React.FC<ModuloLSMViewProps> = ({
                 fontSize: '1rem',
                 borderRadius: '16px',
               }}
-              disabled={analizando || guardando}
+              disabled={analizando || guardando || !manosDetectadas}
               onClick={() => {
                 capturaActivaRef.current = false;
                 setCuenta(null);
-                const muestras = muestrasPrecisionRef.current.slice();
-                let puntaje = precisionEnVivoRef.current || precisionEnVivo;
+                const muestras = muestrasPrecisionRef.current.slice(-20);
+                let puntaje = precisionEnVivoRef.current || precisionEnVivo || 0;
                 if (muestras.length > 0) {
-                  muestras.sort((a, b) => b - a);
-                  const top = muestras.slice(
-                    0,
-                    Math.max(1, Math.ceil(muestras.length * 0.45))
-                  );
+                  const promedio =
+                    muestras.reduce((a, b) => a + b, 0) / muestras.length;
                   puntaje = Math.round(
-                    top.reduce((a, b) => a + b, 0) / top.length
+                    promedio * 0.6 + (precisionEnVivoRef.current || 0) * 0.4
                   );
-                } else if (!puntaje) {
-                  puntaje = manosDetectadas ? 82 : 48;
                 }
                 void registrarIntento(puntaje);
               }}
@@ -1192,7 +1211,7 @@ export const ModuloLSMView: React.FC<ModuloLSMViewProps> = ({
               <span>
                 {manosDetectadas
                   ? `Calificar ahora (${precisionEnVivo}%)`
-                  : 'Calificar seña'}
+                  : 'Muestra tu mano para calificar'}
               </span>
             </button>
           )}

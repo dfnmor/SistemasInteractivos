@@ -1,7 +1,7 @@
 import type { NormalizedLandmark } from '@mediapipe/tasks-vision';
 
 /* =============================================================================
- * CLASIFICADOR GEOMÉTRICO Y CINEMÁTICO DE SEÑAS LSM (MediaPipe HandLandmarker)
+ * CLASIFICADOR GEOMÉTRICO Y CINEMÁTICO ESTRICTO DE SEÑAS LSM (MediaPipe)
  * + CATÁLOGO DE VIDEOS DE REFERENCIA DE WIKISIGNS.ORG (LSM MEXICANO)
  * Fuente de videos: https://www.wikisigns.org/list/es/lsm
  * ============================================================================= */
@@ -14,23 +14,24 @@ export interface ReglaSenaLSM {
   instruccionCorta: string;
   pasos: string[];
   /**
-   * Estado esperado de cada dedo:
-   * - 'EXT': extendido (1)
-   * - 'FLEX': flexionado/cerrado (0)
-   * - 'CURVO': semi-curvado o en pinza
-   * - 'LIBRE': opcional / variable según variante regional
+   * Estado estricto esperado de cada dedo:
+   * - 'EXT': extendido/estirado
+   * - 'FLEX': flexionado/doblado hacia la palma
+   * - 'PINZA': curvado haciendo pinza o capullo
+   * - 'LIBRE': opcional
    */
   dedosEsperados: {
-    pulgar: 'EXT' | 'FLEX' | 'CURVO' | 'LIBRE';
-    indice: 'EXT' | 'FLEX' | 'CURVO' | 'LIBRE';
-    medio: 'EXT' | 'FLEX' | 'CURVO' | 'LIBRE';
-    anular: 'EXT' | 'FLEX' | 'CURVO' | 'LIBRE';
-    menique: 'EXT' | 'FLEX' | 'CURVO' | 'LIBRE';
+    pulgar: 'EXT' | 'FLEX' | 'PINZA' | 'LIBRE';
+    indice: 'EXT' | 'FLEX' | 'PINZA' | 'LIBRE';
+    medio: 'EXT' | 'FLEX' | 'PINZA' | 'LIBRE';
+    anular: 'EXT' | 'FLEX' | 'PINZA' | 'LIBRE';
+    menique: 'EXT' | 'FLEX' | 'PINZA' | 'LIBRE';
   };
-  separacionIndiceMedio?: 'JUNTOS' | 'SEPARADOS_V' | 'LIBRE';
+  separacionIndiceMedio?: 'JUNTOS' | 'SEPARADOS_V';
   pinzaPulgarIndice?: boolean;
   capulloYemas?: boolean;
-  dosManosPreferido?: boolean;
+  requiereDosManos?: boolean;
+  requiereMovimiento?: boolean;
 }
 
 export const CATALOGO_SENAS_WIKISIGNS: Record<string, ReglaSenaLSM> = {
@@ -40,11 +41,11 @@ export const CATALOGO_SENAS_WIKISIGNS: Record<string, ReglaSenaLSM> = {
     wikisignsUrl: 'https://www.wikisigns.org/es/lsm/hola',
     youtubeId: 'q51NPnFAmgA',
     instruccionCorta:
-      'Extiende índice y medio juntos (configuración H) cerca de tu frente y desliza hacia afuera.',
+      'Estira SOLO índice, medio (juntos) y pulgar. Dobla anular y meñique hacia la palma.',
     pasos: [
-      '1. Estira los dedos índice y medio juntos.',
-      '2. Dobla el anular y el meñique hacia la palma.',
-      '3. Coloca tu mano a la altura de la frente y muévela suavemente hacia afuera.',
+      '1. Estira los dedos índice y medio juntos (configuración H).',
+      '2. Dobla completamente el anular y el meñique hacia la palma.',
+      '3. Mantén el pulgar abierto y desliza la mano desde tu sien.',
     ],
     dedosEsperados: {
       pulgar: 'EXT',
@@ -61,10 +62,10 @@ export const CATALOGO_SENAS_WIKISIGNS: Record<string, ReglaSenaLSM> = {
     wikisignsUrl: 'https://www.wikisigns.org/es/lsm/Luna%20de%20Miel',
     youtubeId: 'GSQGr1qD8vI',
     instruccionCorta:
-      'Extiende el pulgar y el índice formando una media luna (L/C) y dobla los demás dedos.',
+      'Estira SOLO el pulgar y el índice formando una L (media luna). Cierra medio, anular y meñique.',
     pasos: [
-      '1. Estira únicamente el dedo índice y el pulgar formando una media luna.',
-      '2. Mantén cerrados los dedos medio, anular y meñique.',
+      '1. Estira únicamente el dedo índice y el pulgar formando una L.',
+      '2. Dobla por completo los dedos medio, anular y meñique.',
       '3. Eleva la mano cerca de tu rostro.',
     ],
     dedosEsperados: {
@@ -81,14 +82,14 @@ export const CATALOGO_SENAS_WIKISIGNS: Record<string, ReglaSenaLSM> = {
     wikisignsUrl: 'https://www.wikisigns.org/es/lsm/conejo',
     youtubeId: 'd-zlDTSgek4',
     instruccionCorta:
-      'Levanta índice y medio como orejitas de conejo y mueve las puntas hacia adelante.',
+      'Levanta SOLO índice y medio como orejitas. Guarda pulgar, anular y meñique.',
     pasos: [
       '1. Extiende los dedos índice y medio hacia arriba como dos orejitas.',
-      '2. Guarda el anular y el meñique en la palma.',
-      '3. Coloca la mano cerca de tu sien y mueve las orejitas.',
+      '2. Dobla el anular, el meñique y el pulgar hacia la palma.',
+      '3. Coloca la mano cerca de tu cabeza y mueve las orejitas.',
     ],
     dedosEsperados: {
-      pulgar: 'LIBRE',
+      pulgar: 'FLEX',
       indice: 'EXT',
       medio: 'EXT',
       anular: 'FLEX',
@@ -101,11 +102,11 @@ export const CATALOGO_SENAS_WIKISIGNS: Record<string, ReglaSenaLSM> = {
     wikisignsUrl: 'https://www.wikisigns.org/es/lsm/mam%C3%A1',
     youtubeId: 'vhhmntwwyUU',
     instruccionCorta:
-      'Extiende tres dedos juntos (índice, medio y anular — letra M) y acércalos a tu barbilla.',
+      'Estira 3 dedos juntos (índice, medio y anular — letra M) y dobla meñique y pulgar.',
     pasos: [
       '1. Estira los dedos índice, medio y anular juntos.',
-      '2. Dobla el dedo meñique y el pulgar.',
-      '3. Acerca las yemas suavemente a tu barbilla.',
+      '2. Dobla el dedo meñique y guarda el pulgar.',
+      '3. Acerca la mano suavemente a tu barbilla.',
     ],
     dedosEsperados: {
       pulgar: 'FLEX',
@@ -122,11 +123,11 @@ export const CATALOGO_SENAS_WIKISIGNS: Record<string, ReglaSenaLSM> = {
     wikisignsUrl: 'https://www.wikisigns.org/es/lsm/pap%C3%A1',
     youtubeId: 'U73KZTHs5TU',
     instruccionCorta:
-      'Abre índice y medio en forma de V (configuración P) con anular y meñique doblados.',
+      'Abre índice y medio bien separados en V (letra P) y dobla anular y meñique.',
     pasos: [
-      '1. Extiende el dedo índice y el dedo medio separados en V.',
-      '2. Dobla el anular y el meñique hacia la palma.',
-      '3. Coloca la mano cerca de la barbilla con pequeños toques.',
+      '1. Extiende el dedo índice y el dedo medio separados formando una V.',
+      '2. Dobla por completo el anular y el meñique.',
+      '3. Coloca la mano cerca de tu barbilla.',
     ],
     dedosEsperados: {
       pulgar: 'LIBRE',
@@ -143,11 +144,10 @@ export const CATALOGO_SENAS_WIKISIGNS: Record<string, ReglaSenaLSM> = {
     wikisignsUrl: 'https://www.wikisigns.org/es/lsm/adi%C3%B3s',
     youtubeId: '4daW7-o4vBg',
     instruccionCorta:
-      'Abre toda tu palma con los 5 dedos estirados y muévela saludando de lado a lado.',
+      'Abre los 5 dedos de tu mano y muévela de un lado a otro saludando.',
     pasos: [
-      '1. Abre la mano extendiendo los cinco dedos.',
-      '2. Muestra la palma hacia la cámara.',
-      '3. Mueve la mano suavemente de un lado a otro.',
+      '1. Abre la palma extendiendo los cinco dedos.',
+      '2. Mueve la mano de izquierda a derecha frente a la cámara.',
     ],
     dedosEsperados: {
       pulgar: 'EXT',
@@ -156,6 +156,7 @@ export const CATALOGO_SENAS_WIKISIGNS: Record<string, ReglaSenaLSM> = {
       anular: 'EXT',
       menique: 'EXT',
     },
+    requiereMovimiento: true,
   },
   GATO: {
     palabra: 'GATO',
@@ -163,15 +164,15 @@ export const CATALOGO_SENAS_WIKISIGNS: Record<string, ReglaSenaLSM> = {
     wikisignsUrl: 'https://www.wikisigns.org/es/lsm/gato',
     youtubeId: '7_hUckVK_W0',
     instruccionCorta:
-      'Une las yemas de índice y pulgar (pinza F) dejando medio, anular y meñique estirados como bigotes.',
+      'Une las puntas de índice y pulgar (pinza F) y estira medio, anular y meñique.',
     pasos: [
-      '1. Junta la punta del dedo índice con el pulgar.',
-      '2. Mantén los dedos medio, anular y meñique extendidos.',
-      '3. Desliza la mano desde tu mejilla hacia afuera como bigotes de gato.',
+      '1. Junta la yema del dedo índice con la del pulgar formando un círculo.',
+      '2. Mantén los dedos medio, anular y meñique bien estirados.',
+      '3. Desliza desde tu mejilla como los bigotes de un gato.',
     ],
     dedosEsperados: {
-      pulgar: 'CURVO',
-      indice: 'CURVO',
+      pulgar: 'PINZA',
+      indice: 'PINZA',
       medio: 'EXT',
       anular: 'EXT',
       menique: 'EXT',
@@ -184,11 +185,10 @@ export const CATALOGO_SENAS_WIKISIGNS: Record<string, ReglaSenaLSM> = {
     wikisignsUrl: 'https://www.wikisigns.org/es/lsm/casa',
     youtubeId: 'QwSIl0vO2zg',
     instruccionCorta:
-      'Extiende tus manos con los dedos juntos e inclínalas formando el techo de una casita.',
+      'Coloca AMBAS manos frente a la cámara e inclínalas uniendo las puntas como un techo.',
     pasos: [
-      '1. Estira los dedos de ambas manos.',
-      '2. Inclina las manos uniendo las puntas arriba como el techo de una casa.',
-      '3. Mantén la figura frente a la cámara.',
+      '1. Levanta ambas manos con los dedos estirados.',
+      '2. Une las puntas de las dos manos arriba formando el techo de una casa.',
     ],
     dedosEsperados: {
       pulgar: 'LIBRE',
@@ -197,7 +197,7 @@ export const CATALOGO_SENAS_WIKISIGNS: Record<string, ReglaSenaLSM> = {
       anular: 'EXT',
       menique: 'EXT',
     },
-    dosManosPreferido: true,
+    requiereDosManos: true,
   },
   AMIGO: {
     palabra: 'AMIGO',
@@ -205,15 +205,16 @@ export const CATALOGO_SENAS_WIKISIGNS: Record<string, ReglaSenaLSM> = {
     wikisignsUrl: 'https://www.wikisigns.org/es/lsm/Amigo',
     youtubeId: 'APW6yD3mPCw',
     instruccionCorta:
-      'Extiende el dedo índice (o entrelaza ambos índices) para representar amistad.',
+      'Estira SOLO el dedo índice (dobla medio, anular y meñique) para enganchar los índices.',
     pasos: [
-      '1. Estira el dedo índice manteniendo anular y meñique doblados.',
-      '2. Si usas ambas manos, engancha los dos dedos índices en el centro.',
+      '1. Estira únicamente el dedo índice.',
+      '2. Dobla los dedos medio, anular y meñique hacia la palma.',
+      '3. Engancha los índices en señal de amistad.',
     ],
     dedosEsperados: {
-      pulgar: 'LIBRE',
+      pulgar: 'FLEX',
       indice: 'EXT',
-      medio: 'LIBRE',
+      medio: 'FLEX',
       anular: 'FLEX',
       menique: 'FLEX',
     },
@@ -224,11 +225,10 @@ export const CATALOGO_SENAS_WIKISIGNS: Record<string, ReglaSenaLSM> = {
     wikisignsUrl: 'https://www.wikisigns.org/es/lsm/%C3%81rbol%20de%20navidad',
     youtubeId: 'DVXgYnUOXfQ',
     instruccionCorta:
-      'Levanta tu mano abierta con los 5 dedos bien separados hacia arriba como las ramas de un árbol.',
+      'Abre los 5 dedos bien separados hacia arriba y mueve la mano como las ramas de un árbol.',
     pasos: [
-      '1. Levanta el antebrazo verticalmente.',
-      '2. Abre los 5 dedos bien extendidos como las ramas.',
-      '3. Gira suavemente la muñeca.',
+      '1. Levanta la mano con los 5 dedos separados.',
+      '2. Agita suavemente la mano de lado a lado como las hojas del árbol.',
     ],
     dedosEsperados: {
       pulgar: 'EXT',
@@ -237,6 +237,8 @@ export const CATALOGO_SENAS_WIKISIGNS: Record<string, ReglaSenaLSM> = {
       anular: 'EXT',
       menique: 'EXT',
     },
+    separacionIndiceMedio: 'SEPARADOS_V',
+    requiereMovimiento: true,
   },
   PERRO: {
     palabra: 'PERRO',
@@ -244,18 +246,19 @@ export const CATALOGO_SENAS_WIKISIGNS: Record<string, ReglaSenaLSM> = {
     wikisignsUrl: 'https://www.wikisigns.org/es/lsm/perro',
     youtubeId: 'kx1XmiJAHnU',
     instruccionCorta:
-      'Extiende índice, medio y pulgar haciendo el gesto de llamar a un perrito.',
+      'Une pulgar y dedo medio mientras mantienes anular y meñique doblados.',
     pasos: [
-      '1. Extiende los dedos índice y medio con el pulgar activo.',
-      '2. Realiza un movimiento suave llamando al perrito.',
+      '1. Extiende índice y medio con el pulgar activo.',
+      '2. Dobla anular y meñique y mueve la mano llamando al perrito.',
     ],
     dedosEsperados: {
       pulgar: 'EXT',
       indice: 'EXT',
       medio: 'EXT',
-      anular: 'LIBRE',
-      menique: 'LIBRE',
+      anular: 'FLEX',
+      menique: 'FLEX',
     },
+    requiereMovimiento: true,
   },
   PELOTA: {
     palabra: 'PELOTA',
@@ -263,19 +266,18 @@ export const CATALOGO_SENAS_WIKISIGNS: Record<string, ReglaSenaLSM> = {
     wikisignsUrl: 'https://www.wikisigns.org/es/lsm/casa',
     youtubeId: 'QwSIl0vO2zg',
     instruccionCorta:
-      'Curva tus dedos formando una esfera (letra C amplia) como si sostuvieras una pelota.',
+      'Curva los dedos en forma de garra/esfera (letra C) sin estirarlos por completo.',
     pasos: [
-      '1. Abre la mano y curva todos los dedos en forma de C redonda.',
-      '2. Si usas ambas manos, rodea una pelota imaginaria frente a ti.',
+      '1. Semidobla todos los dedos como sosteniendo una pelota redonda.',
+      '2. No dejes la palma totalmente plana ni en puño cerrado.',
     ],
     dedosEsperados: {
       pulgar: 'EXT',
-      indice: 'CURVO',
-      medio: 'CURVO',
-      anular: 'CURVO',
-      menique: 'CURVO',
+      indice: 'PINZA',
+      medio: 'PINZA',
+      anular: 'PINZA',
+      menique: 'PINZA',
     },
-    dosManosPreferido: true,
   },
   'BUENOS DÍAS': {
     palabra: 'BUENOS DÍAS',
@@ -283,13 +285,13 @@ export const CATALOGO_SENAS_WIKISIGNS: Record<string, ReglaSenaLSM> = {
     wikisignsUrl: 'https://www.wikisigns.org/es/lsm/buenos%20d%C3%ADas',
     youtubeId: 'KCmq76G3oXI',
     instruccionCorta:
-      'Coloca los 4 dedos extendidos juntos (letra B) desde el pecho hacia adelante.',
+      'Estira los 4 dedos juntos (índice, medio, anular y meñique) y dobla el pulgar sobre la palma (letra B).',
     pasos: [
-      '1. Estira índice, medio, anular y meñique juntos.',
-      '2. Lleva la mano desde el pecho hacia adelante en señal de "Buenos".',
+      '1. Estira índice, medio, anular y meñique bien pegados entre sí.',
+      '2. Dobla el pulgar hacia el centro de tu palma (configuración B).',
     ],
     dedosEsperados: {
-      pulgar: 'LIBRE',
+      pulgar: 'FLEX',
       indice: 'EXT',
       medio: 'EXT',
       anular: 'EXT',
@@ -303,19 +305,19 @@ export const CATALOGO_SENAS_WIKISIGNS: Record<string, ReglaSenaLSM> = {
     wikisignsUrl: 'https://www.wikisigns.org/es/lsm/Libro%20%28A%29',
     youtubeId: 'NVTYaHtBayU',
     instruccionCorta:
-      'Extiende las palmas planas con los dedos juntos y ábrelas como las páginas de un libro.',
+      'Muestra AMBAS manos abiertas frente a la cámara como las dos páginas de un libro.',
     pasos: [
-      '1. Junta tus manos planas con todos los dedos estirados.',
-      '2. Ábrelas hacia los lados como al abrir un libro.',
+      '1. Coloca tus dos manos frente a la cámara con los dedos juntos.',
+      '2. Ábrelas como si abrieras un libro para leer.',
     ],
     dedosEsperados: {
-      pulgar: 'EXT',
+      pulgar: 'LIBRE',
       indice: 'EXT',
       medio: 'EXT',
       anular: 'EXT',
       menique: 'EXT',
     },
-    dosManosPreferido: true,
+    requiereDosManos: true,
   },
   GRACIAS: {
     palabra: 'GRACIAS',
@@ -323,15 +325,16 @@ export const CATALOGO_SENAS_WIKISIGNS: Record<string, ReglaSenaLSM> = {
     wikisignsUrl: 'https://www.wikisigns.org/es/lsm/gracias',
     youtubeId: 'JH4GfJncYdw',
     instruccionCorta:
-      'Extiende la mano abierta inclinando el dedo medio o llévala desde tu barbilla hacia adelante.',
+      'Abre la mano pero dobla el dedo medio hacia adelante (configuración de Gracias en LSM).',
     pasos: [
-      '1. Abre la palma con los dedos extendidos.',
-      '2. Lleva la mano desde la barbilla o palma hacia el frente en señal de gratitud.',
+      '1. Mantén estirados el pulgar, índice, anular y meñique.',
+      '2. Flexiona el dedo medio hacia adelante.',
+      '3. Lleva la mano hacia el frente.',
     ],
     dedosEsperados: {
       pulgar: 'EXT',
       indice: 'EXT',
-      medio: 'LIBRE',
+      medio: 'FLEX',
       anular: 'EXT',
       menique: 'EXT',
     },
@@ -342,14 +345,14 @@ export const CATALOGO_SENAS_WIKISIGNS: Record<string, ReglaSenaLSM> = {
     wikisignsUrl: 'https://www.wikisigns.org/es/lsm/familia',
     youtubeId: '44yC0Y8DQxE',
     instruccionCorta:
-      'Une pulgar e índice en círculo (letra F) con medio, anular y meñique estirados arriba.',
+      'Une pulgar e índice en círculo (letra F) y estira medio, anular y meñique.',
     pasos: [
-      '1. Une la yema del índice con el pulgar formando la letra F.',
-      '2. Estira hacia arriba los dedos medio, anular y meñique.',
+      '1. Une la punta del dedo índice con el pulgar (letra F).',
+      '2. Estira completamente los dedos medio, anular y meñique.',
     ],
     dedosEsperados: {
-      pulgar: 'CURVO',
-      indice: 'CURVO',
+      pulgar: 'PINZA',
+      indice: 'PINZA',
       medio: 'EXT',
       anular: 'EXT',
       menique: 'EXT',
@@ -362,15 +365,15 @@ export const CATALOGO_SENAS_WIKISIGNS: Record<string, ReglaSenaLSM> = {
     wikisignsUrl: 'https://www.wikisigns.org/es/lsm/comer',
     youtubeId: 'dh5rXj3karc',
     instruccionCorta:
-      'Une las puntas de los dedos con el pulgar (capullo) y acércalos hacia tu boca.',
+      'Junta todas las yemas de tus dedos con el pulgar formando un capullo cerrado hacia tu boca.',
     pasos: [
-      '1. Junta las yemas de todos tus dedos con el pulgar.',
-      '2. Acerca la mano hacia tu boca un par de veces.',
+      '1. Une las puntas de los dedos con la punta del pulgar.',
+      '2. Dobla el anular y meñique y acerca la mano hacia tu boca.',
     ],
     dedosEsperados: {
-      pulgar: 'CURVO',
-      indice: 'CURVO',
-      medio: 'CURVO',
+      pulgar: 'PINZA',
+      indice: 'PINZA',
+      medio: 'PINZA',
       anular: 'FLEX',
       menique: 'FLEX',
     },
@@ -382,42 +385,26 @@ export const CATALOGO_SENAS_WIKISIGNS: Record<string, ReglaSenaLSM> = {
     wikisignsUrl: 'https://www.wikisigns.org/es/lsm/Feliz',
     youtubeId: '4f38YRFz7kw',
     instruccionCorta:
-      'Abre la mano (o en configuración F) con los dedos extendidos y muévela hacia arriba con alegría.',
+      'Forma la letra F (une índice y pulgar, estira medio, anular y meñique) y muévela con alegría.',
     pasos: [
-      '1. Extiende los dedos de tu mano mostrando apertura.',
-      '2. Realiza un movimiento ascendente frente a ti.',
+      '1. Une las yemas de índice y pulgar (letra F).',
+      '2. Mantén estirados medio, anular y meñique y mueve la mano.',
     ],
     dedosEsperados: {
-      pulgar: 'LIBRE',
-      indice: 'LIBRE',
+      pulgar: 'PINZA',
+      indice: 'PINZA',
       medio: 'EXT',
       anular: 'EXT',
       menique: 'EXT',
     },
+    pinzaPulgarIndice: true,
   },
 };
 
 export function obtenerReglaSenaLSM(palabraRaw: string): ReglaSenaLSM {
   const clave = palabraRaw.trim().toLocaleUpperCase('es');
   return (
-    CATALOGO_SENAS_WIKISIGNS[clave] || {
-      palabra: clave,
-      categoria: 'LSM',
-      wikisignsUrl: 'https://www.wikisigns.org/list/es/lsm',
-      youtubeId: 'q51NPnFAmgA',
-      instruccionCorta: `Realiza la seña "${clave}" frente a la cámara siguiendo el modelo visual.`,
-      pasos: [
-        '1. Observa el video o imagen de referencia.',
-        '2. Coloca tu mano dentro de las esquinas guía.',
-      ],
-      dedosEsperados: {
-        pulgar: 'EXT',
-        indice: 'EXT',
-        medio: 'EXT',
-        anular: 'LIBRE',
-        menique: 'LIBRE',
-      },
-    }
+    CATALOGO_SENAS_WIKISIGNS[clave] || CATALOGO_SENAS_WIKISIGNS['HOLA']
   );
 }
 
@@ -443,7 +430,8 @@ export interface CaracteristicasMano {
   separacionIndiceMedio: number;
   pinzaPulgarIndice: number;
   agrupacionYemas: number;
-  alturaY: number;
+  centroX: number;
+  centroY: number;
 }
 
 export function extraerCaracteristicasMano(
@@ -455,7 +443,7 @@ export function extraerCaracteristicasMano(
     (dist3D(wrist, lm[5]) + dist3D(wrist, lm[9]) + dist3D(wrist, lm[17])) / 3
   );
 
-  const calcExt = (mcp: number, pip: number, dip: number, tip: number): number => {
+  const calcExt = (mcp: number, pip: number, _dip: number, tip: number): number => {
     const dWristTip = dist2D(wrist, lm[tip]);
     const dWristPip = dist2D(wrist, lm[pip]);
     const dMcpTip = dist2D(lm[mcp], lm[tip]);
@@ -464,10 +452,8 @@ export function extraerCaracteristicasMano(
     const ratioWrist = dWristTip / Math.max(0.01, dWristPip);
     const ratioMcp = dMcpTip / dMcpPip;
 
-    // Si ratioWrist >= 1.18 y ratioMcp >= 1.55 -> dedo totalmente extendido (1.0)
-    // Si ratioWrist <= 0.95 -> dedo cerrado/flexionado (0.0)
-    const scoreWrist = Math.min(1, Math.max(0, (ratioWrist - 0.92) / 0.32));
-    const scoreMcp = Math.min(1, Math.max(0, (ratioMcp - 1.05) / 0.65));
+    const scoreWrist = Math.min(1, Math.max(0, (ratioWrist - 0.94) / 0.3));
+    const scoreMcp = Math.min(1, Math.max(0, (ratioMcp - 1.08) / 0.62));
     return scoreWrist * 0.55 + scoreMcp * 0.45;
   };
 
@@ -476,12 +462,15 @@ export function extraerCaracteristicasMano(
   const anularExt = calcExt(13, 14, 15, 16);
   const meniqueExt = calcExt(17, 18, 19, 20);
 
-  // Extensión del pulgar: distancia de la punta del pulgar (4) al MCP del índice (5) y del medio (9)
   const dThumbIndexMcp = dist2D(lm[4], lm[5]) / palmSize;
   const dThumbPinkyMcp = dist2D(lm[4], lm[17]) / palmSize;
   const pulgarExt = Math.min(
     1,
-    Math.max(0, (dThumbIndexMcp - 0.42) / 0.45 * 0.6 + (dThumbPinkyMcp - 0.85) / 0.55 * 0.4)
+    Math.max(
+      0,
+      ((dThumbIndexMcp - 0.44) / 0.42) * 0.6 +
+        ((dThumbPinkyMcp - 0.88) / 0.52) * 0.4
+    )
   );
 
   const separacionIndiceMedio = dist2D(lm[8], lm[12]) / palmSize;
@@ -499,7 +488,8 @@ export function extraerCaracteristicasMano(
     separacionIndiceMedio,
     pinzaPulgarIndice,
     agrupacionYemas,
-    alturaY: lm[8].y,
+    centroX: lm[9].x,
+    centroY: lm[9].y,
   };
 }
 
@@ -517,39 +507,90 @@ export interface ResultadoEvaluacionFrame {
   };
 }
 
-function evaluarDedoContraRegla(
+function evaluarDedoEstricto(
   valorExt: number,
-  esperado: 'EXT' | 'FLEX' | 'CURVO' | 'LIBRE'
+  esperado: 'EXT' | 'FLEX' | 'PINZA' | 'LIBRE',
+  pinzaDist: number
 ): { score: number; ok: boolean } {
   if (esperado === 'LIBRE') {
     return { score: 1.0, ok: true };
   }
   if (esperado === 'EXT') {
-    const score = Math.min(1, Math.max(0, (valorExt - 0.2) / 0.55));
-    return { score, ok: valorExt >= 0.52 };
+    const ok = valorExt >= 0.58;
+    const score = ok
+      ? 0.8 + ((valorExt - 0.58) / 0.42) * 0.2
+      : Math.max(0, (valorExt / 0.58) * 0.45);
+    return { score, ok };
   }
   if (esperado === 'FLEX') {
-    const score = Math.min(1, Math.max(0, (0.78 - valorExt) / 0.52));
-    return { score, ok: valorExt <= 0.52 };
+    // Debe estar doblado (valorExt <= 0.45). Si está estirado (> 0.45), reprueba este dedo.
+    const ok = valorExt <= 0.45;
+    const score = ok
+      ? 0.8 + ((0.45 - valorExt) / 0.45) * 0.2
+      : Math.max(0, ((1 - valorExt) / 0.55) * 0.35);
+    return { score, ok };
   }
-  // 'CURVO': acepta tanto postura semi-curvada como pinza
-  const distMedia = Math.abs(valorExt - 0.45);
-  const score = Math.min(1, Math.max(0.35, 1 - distMedia * 1.1));
-  return { score, ok: valorExt >= 0.15 && valorExt <= 0.82 };
+  // 'PINZA': no debe estar totalmente recto (valorExt < 0.82) o debe tocar pulgar-índice (pinzaDist < 0.62)
+  const ok = pinzaDist <= 0.62 || (valorExt >= 0.12 && valorExt <= 0.78);
+  const score = ok ? 0.88 : 0.25;
+  return { score, ok };
 }
 
 /**
- * Evalúa qué tan bien coincide la mano detectada en tiempo real con la seña objetivo,
- * e identifica también qué seña del vocabulario se parece más a la postura actual.
+ * Clasifica qué seña está realizando realmente la mano en este momento
  */
+function identificarArquetipoMano(
+  feat: CaracteristicasMano,
+  numManos: number
+): string {
+  const i = feat.indiceExt >= 0.58;
+  const m = feat.medioExt >= 0.58;
+  const a = feat.anularExt >= 0.55;
+  const p = feat.meniqueExt >= 0.55;
+  const t = feat.pulgarExt >= 0.52;
+
+  if (feat.pinzaPulgarIndice <= 0.55 && m && a && p) {
+    return 'GATO / FAMILIA (Pinza F)';
+  }
+  if (feat.agrupacionYemas <= 0.68 && !a && !p) {
+    return 'COMER';
+  }
+  if (i && m && a && p && t) {
+    return numManos >= 2 ? 'CASA / LIBRO (2 manos)' : 'MANO ABIERTA (5 dedos)';
+  }
+  if (i && m && a && p && !t) {
+    return 'BUENOS DÍAS (Letra B)';
+  }
+  if (i && !m && a && p) {
+    return 'GRACIAS';
+  }
+  if (i && m && a && !p) {
+    return 'MAMÁ (3 dedos - M)';
+  }
+  if (i && m && !a && !p) {
+    if (feat.separacionIndiceMedio >= 0.38) {
+      return 'PAPÁ (2 dedos en V)';
+    }
+    return t ? 'HOLA (Configuración H)' : 'CONEJO (2 dedos juntos)';
+  }
+  if (i && !m && !a && !p) {
+    return t ? 'LUNA (Configuración L)' : 'AMIGO (Índice)';
+  }
+  if (!i && !m && !a && !p) {
+    return 'PUÑO CERRADO';
+  }
+  return 'POSTURA INCOMPLETA';
+}
+
 export function evaluarManoContraSena(
   palabraObjetivo: string,
-  manos: NormalizedLandmark[][]
+  manos: NormalizedLandmark[][],
+  movimientoReciente = 0
 ): ResultadoEvaluacionFrame {
   if (!manos || manos.length === 0) {
     return {
       porcentajeCoincidencia: 0,
-      senaReconocida: 'NINGUNA',
+      senaReconocida: 'SIN MANO',
       posturaCorrecta: false,
       pista: 'Coloca tu mano frente a la cámara dentro de las esquinas guía.',
       estadoDedos: {
@@ -564,140 +605,164 @@ export function evaluarManoContraSena(
 
   const regla = obtenerReglaSenaLSM(palabraObjetivo);
   const feat = extraerCaracteristicasMano(manos[0]);
+  const arquetipoDetectado = identificarArquetipoMano(feat, manos.length);
 
-  const evPulgar = evaluarDedoContraRegla(feat.pulgarExt, regla.dedosEsperados.pulgar);
-  const evIndice = evaluarDedoContraRegla(feat.indiceExt, regla.dedosEsperados.indice);
-  const evMedio = evaluarDedoContraRegla(feat.medioExt, regla.dedosEsperados.medio);
-  const evAnular = evaluarDedoContraRegla(feat.anularExt, regla.dedosEsperados.anular);
-  const evMenique = evaluarDedoContraRegla(feat.meniqueExt, regla.dedosEsperados.menique);
-
-  // Peso principal: configuración articular de los 5 dedos (75% del puntaje)
-  let scoreTotal =
-    evPulgar.score * 0.12 +
-    evIndice.score * 0.24 +
-    evMedio.score * 0.24 +
-    evAnular.score * 0.2 +
-    evMenique.score * 0.2;
-
-  // Modificadores específicos de la seña (25% restante)
-  let bonusEspecifico = 0.85;
-  let pistaEspecifica = '';
-
-  if (regla.separacionIndiceMedio === 'JUNTOS') {
-    if (feat.separacionIndiceMedio <= 0.65) {
-      bonusEspecifico = 1.0;
-    } else {
-      bonusEspecifico = 0.68;
-      pistaEspecifica = 'Junta un poco más tus dedos índice y medio.';
-    }
-  } else if (regla.separacionIndiceMedio === 'SEPARADOS_V') {
-    if (feat.separacionIndiceMedio >= 0.34) {
-      bonusEspecifico = 1.0;
-    } else {
-      bonusEspecifico = 0.68;
-      pistaEspecifica = 'Separa los dedos índice y medio formando una V.';
-    }
-  }
-
-  if (regla.pinzaPulgarIndice) {
-    if (feat.pinzaPulgarIndice <= 0.65) {
-      bonusEspecifico = 1.0;
-    } else {
-      bonusEspecifico = 0.62;
-      pistaEspecifica = 'Une las puntas de tu dedo índice y tu pulgar.';
-    }
-  }
-
-  if (regla.capulloYemas) {
-    if (feat.agrupacionYemas <= 0.88) {
-      bonusEspecifico = 1.0;
-    } else {
-      bonusEspecifico = 0.62;
-      pistaEspecifica = 'Junta las yemas de tus dedos con el pulgar hacia tu boca.';
-    }
-  }
-
-  if (regla.dosManosPreferido && manos.length >= 2) {
-    bonusEspecifico = Math.min(1.08, bonusEspecifico + 0.12);
-  }
-
-  const combinado = scoreTotal * 0.78 + bonusEspecifico * 0.22;
-  const porcentajeCoincidencia = Math.round(
-    Math.min(99, Math.max(18, combinado * 100))
+  const evPulgar = evaluarDedoEstricto(
+    feat.pulgarExt,
+    regla.dedosEsperados.pulgar,
+    feat.pinzaPulgarIndice
+  );
+  const evIndice = evaluarDedoEstricto(
+    feat.indiceExt,
+    regla.dedosEsperados.indice,
+    feat.pinzaPulgarIndice
+  );
+  const evMedio = evaluarDedoEstricto(
+    feat.medioExt,
+    regla.dedosEsperados.medio,
+    feat.pinzaPulgarIndice
+  );
+  const evAnular = evaluarDedoEstricto(
+    feat.anularExt,
+    regla.dedosEsperados.anular,
+    feat.pinzaPulgarIndice
+  );
+  const evMenique = evaluarDedoEstricto(
+    feat.meniqueExt,
+    regla.dedosEsperados.menique,
+    feat.pinzaPulgarIndice
   );
 
-  // Identificar qué seña del catálogo base se parece más a la postura actual
-  let mejorSena = regla.palabra;
-  let mejorScoreCatalogo = porcentajeCoincidencia;
+  // Contar cuántos dedos obligatorios están en posición INCORRECTA (en naranja)
+  const dedosObligatorios: Array<{
+    nombre: string;
+    esperado: 'EXT' | 'FLEX' | 'PINZA' | 'LIBRE';
+    ok: boolean;
+    score: number;
+  }> = [
+    {
+      nombre: 'pulgar',
+      esperado: regla.dedosEsperados.pulgar,
+      ok: evPulgar.ok,
+      score: evPulgar.score,
+    },
+    {
+      nombre: 'índice',
+      esperado: regla.dedosEsperados.indice,
+      ok: evIndice.ok,
+      score: evIndice.score,
+    },
+    {
+      nombre: 'medio',
+      esperado: regla.dedosEsperados.medio,
+      ok: evMedio.ok,
+      score: evMedio.score,
+    },
+    {
+      nombre: 'anular',
+      esperado: regla.dedosEsperados.anular,
+      ok: evAnular.ok,
+      score: evAnular.score,
+    },
+    {
+      nombre: 'meñique',
+      esperado: regla.dedosEsperados.menique,
+      ok: evMenique.ok,
+      score: evMenique.score,
+    },
+  ].filter((d) => d.esperado !== 'LIBRE');
 
-  if (porcentajeCoincidencia < 76) {
-    // Clasificar entre los arquetipos principales para mostrar qué está haciendo el usuario
-    if (
-      feat.indiceExt > 0.6 &&
-      feat.medioExt > 0.6 &&
-      feat.anularExt > 0.6 &&
-      feat.meniqueExt > 0.6
-    ) {
-      mejorSena = 'ADIÓS / MANO ABIERTA';
-    } else if (
-      feat.indiceExt > 0.6 &&
-      feat.medioExt < 0.45 &&
-      feat.anularExt < 0.45 &&
-      feat.meniqueExt < 0.45 &&
-      feat.pulgarExt > 0.5
-    ) {
-      mejorSena = 'LUNA (Configuración L)';
-    } else if (
-      feat.indiceExt > 0.6 &&
-      feat.medioExt > 0.6 &&
-      feat.anularExt > 0.55 &&
-      feat.meniqueExt < 0.5
-    ) {
-      mejorSena = 'MAMÁ (Configuración M)';
-    } else if (
-      feat.indiceExt > 0.6 &&
-      feat.medioExt > 0.6 &&
-      feat.anularExt < 0.48 &&
-      feat.meniqueExt < 0.48
-    ) {
-      mejorSena =
-        feat.separacionIndiceMedio >= 0.38
-          ? 'PAPÁ / CONEJO (Configuración V)'
-          : 'HOLA / CONEJO (Configuración H)';
-    } else if (
-      feat.indiceExt < 0.38 &&
-      feat.medioExt < 0.38 &&
-      feat.anularExt < 0.38 &&
-      feat.meniqueExt < 0.38
-    ) {
-      mejorSena = 'PUÑO CERRADO';
+  const dedosIncorrectos = dedosObligatorios.filter((d) => !d.ok);
+  const promedioDedos =
+    dedosObligatorios.reduce((acc, d) => acc + d.score, 0) /
+    Math.max(1, dedosObligatorios.length);
+
+  // Verificar restricciones geométricas adicionales de la seña
+  let restriccionExtraOk = true;
+  let pistaRestriccion = '';
+
+  if (regla.separacionIndiceMedio === 'JUNTOS') {
+    if (feat.separacionIndiceMedio > 0.42) {
+      restriccionExtraOk = false;
+      pistaRestriccion = 'Junta tus dedos índice y medio (no los separes en V).';
     }
-    void mejorScoreCatalogo;
+  } else if (regla.separacionIndiceMedio === 'SEPARADOS_V') {
+    if (feat.separacionIndiceMedio < 0.34) {
+      restriccionExtraOk = false;
+      pistaRestriccion = 'Separa tus dedos índice y medio formando una V clara.';
+    }
   }
 
-  // Generar pista amigable en tiempo real si algún dedo no coincide todavía
-  let pista = `¡Muy bien! Mantén la seña "${regla.palabra}" (${porcentajeCoincidencia}% de coincidencia).`;
-  if (porcentajeCoincidencia <= 60) {
-    if (!evIndice.ok || !evMedio.ok) {
-      pista = regla.instruccionCorta;
-    } else if (!evAnular.ok || !evMenique.ok) {
-      pista =
-        regla.dedosEsperados.anular === 'FLEX'
-          ? 'Dobla tus dedos anular y meñique hacia la palma.'
-          : 'Estira también tus dedos anular y meñique.';
-    } else if (pistaEspecifica) {
-      pista = pistaEspecifica;
+  if (regla.pinzaPulgarIndice && feat.pinzaPulgarIndice > 0.58) {
+    restriccionExtraOk = false;
+    pistaRestriccion = 'Une la punta de tu dedo índice con la punta del pulgar.';
+  }
+
+  if (regla.capulloYemas && feat.agrupacionYemas > 0.72) {
+    restriccionExtraOk = false;
+    pistaRestriccion = 'Une todas las yemas de tus dedos con el pulgar.';
+  }
+
+  if (regla.requiereDosManos && manos.length < 2) {
+    restriccionExtraOk = false;
+    pistaRestriccion = `Coloca AMBAS manos en la cámara para hacer la seña "${regla.palabra}".`;
+  }
+
+  if (regla.requiereMovimiento && movimientoReciente < 0.018) {
+    restriccionExtraOk = false;
+    pistaRestriccion = `Mueve tu mano de lado a lado para completar la seña "${regla.palabra}".`;
+  }
+
+  // Cálculo estricto del porcentaje:
+  // - Si hay 2 o más dedos en posición incorrecta (ej. mano abierta cuando se pide HOLA), el puntaje máximo es 34%.
+  // - Si hay 1 dedo en posición incorrecta, el puntaje máximo es 52% (NO aprueba).
+  // - Si los dedos están bien pero falta la restricción especial (V, juntos, pinza, 2 manos, movimiento), máximo 56% (NO aprueba).
+  // - Solo cuando TODOS los dedos obligatorios y la restricción se cumplen, supera el 60% (76% - 98%).
+  let porcentajeCoincidencia: number;
+
+  if (dedosIncorrectos.length >= 2) {
+    porcentajeCoincidencia = Math.round(
+      Math.min(36, Math.max(15, promedioDedos * 42))
+    );
+  } else if (dedosIncorrectos.length === 1) {
+    porcentajeCoincidencia = Math.round(
+      Math.min(54, Math.max(38, promedioDedos * 58))
+    );
+  } else if (!restriccionExtraOk) {
+    porcentajeCoincidencia = 56;
+  } else {
+    porcentajeCoincidencia = Math.round(
+      Math.min(98, Math.max(76, 72 + promedioDedos * 26))
+    );
+  }
+
+  const posturaCorrecta = porcentajeCoincidencia > 60;
+
+  // Construir retroalimentación específica indicando exactamente qué dedo corregir
+  let pista = `¡Postura correcta para "${regla.palabra}"! Mantén la seña (${porcentajeCoincidencia}%).`;
+  if (!posturaCorrecta) {
+    const debenDoblarse = dedosIncorrectos
+      .filter((d) => d.esperado === 'FLEX')
+      .map((d) => d.nombre);
+    const debenEstirarse = dedosIncorrectos
+      .filter((d) => d.esperado === 'EXT')
+      .map((d) => d.nombre);
+
+    if (debenDoblarse.length > 0) {
+      pista = `Estás mostrando ${arquetipoDetectado}. Dobla: ${debenDoblarse.join(', ')}.`;
+    } else if (debenEstirarse.length > 0) {
+      pista = `Estás mostrando ${arquetipoDetectado}. Estira: ${debenEstirarse.join(', ')}.`;
+    } else if (pistaRestriccion) {
+      pista = pistaRestriccion;
     } else {
       pista = regla.instruccionCorta;
     }
-  } else if (pistaEspecifica && porcentajeCoincidencia < 78) {
-    pista = pistaEspecifica;
   }
 
   return {
     porcentajeCoincidencia,
-    senaReconocida: porcentajeCoincidencia >= 65 ? regla.palabra : mejorSena,
-    posturaCorrecta: porcentajeCoincidencia > 60,
+    senaReconocida: posturaCorrecta ? regla.palabra : arquetipoDetectado,
+    posturaCorrecta,
     pista,
     estadoDedos: {
       pulgar: evPulgar.ok,
