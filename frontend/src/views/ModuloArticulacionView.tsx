@@ -1,21 +1,11 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { FilesetResolver, FaceLandmarker } from '@mediapipe/tasks-vision';
 import { PerfilNino, Cuento, VistaActiva } from '../types/meexuu';
 
 /* =============================================================================
  * MÓDULO 2 — SESIÓN DE HABLA (/articulacion)
- * Sigue estrictamente el Wireframe 4 (Fase 2, Act. 6, p. 9):
- *   1. Encabezado: "← Sesión de habla"
- *   2. Tarjeta del fonema:
- *      - "FONEMA BILABIAL"
- *      - "🔊 /m/ - /a/ • MA - MÁ" | "★★☆"
- *      - "💡 Paso 1: Presiona los labios con suavidad" | "〰 Vibración Nasal"
- *   3. Tarjeta "👤 Modelo Guía: Terapeuta" con botón circular "▶", boca animada,
- *      onda azul y etiqueta "Vibración Fonética Continua"
- *   4. Tarjeta Espejo AR con cámara ("✓ Alineado"), guía labial punteada y
- *      barras "👄 Cierre y Simetría Labial" | "¡Abre juntos! Correcto"
- *   5. Fila de botones: "↻ Repetir (Ver fonema lento)" y "✓ ¡Listo! Comprobar"
- *   6. Tarjeta inferior verde menta: "😊 ¡Excelente sellado labial! Tus labios
- *      hicieron el contacto perfecto para 'MA'."
+ * Con Seguimiento y Clasificación Labial en Tiempo Real (MediaPipe FaceLandmarker)
+ * Sigue estrictamente el Wireframe 4 (Fase 2, Act. 6, p. 9)
  * ============================================================================= */
 
 interface ModuloArticulacionViewProps {
@@ -44,45 +34,101 @@ interface InfoFonema {
   indicador: string;
   exitoTitulo: string;
   exitoTexto: string;
+  requiereCierreInicial: boolean;
 }
 
 const INFO_FONEMAS: Record<string, InfoFonema> = {
   'MA-MÁ': {
     categoria: 'FONEMA BILABIAL',
     fonema: '/m/ - /a/ • MA - MÁ',
-    paso: 'Paso 1: Presiona los labios con suavidad',
+    paso: 'Paso 1: Presiona los labios con suavidad y ábrelos en "A"',
     indicador: 'Vibración Nasal',
     exitoTitulo: '¡Excelente sellado labial!',
     exitoTexto: "Tus labios hicieron el contacto perfecto para 'MA'.",
+    requiereCierreInicial: true,
   },
   'PA-PÁ': {
     categoria: 'FONEMA BILABIAL',
     fonema: '/p/ - /a/ • PA - PÁ',
-    paso: 'Paso 1: Junta los labios y suelta el aire',
+    paso: 'Paso 1: Junta los labios y suelta el aire al abrir',
     indicador: 'Pulso de Aire',
     exitoTitulo: '¡Excelente sellado labial!',
     exitoTexto: "Tus labios hicieron el contacto perfecto para 'PA'.",
+    requiereCierreInicial: true,
+  },
+  'A-MOR': {
+    categoria: 'VOCAL + BILABIAL',
+    fonema: '/a/ - /m/ • A - MOR',
+    paso: 'Paso 1: Abre la boca grande en "A" y junta los labios en "M"',
+    indicador: 'Vibración Nasal',
+    exitoTitulo: '¡Excelente articulación!',
+    exitoTexto: "Abriste y cerraste los labios muy bien para 'A-MOR'.",
+    requiereCierreInicial: true,
   },
   'CA-SA': {
     categoria: 'APERTURA VOCÁLICA',
     fonema: '/k/ - /a/ • CA - SA',
-    paso: 'Paso 1: Abre la boca en "CA" y sonríe en "SA"',
+    paso: 'Paso 1: Abre la boca en "CA" y sonríe suavemente en "SA"',
     indicador: 'Soplo Suave',
     exitoTitulo: '¡Excelente apertura labial!',
-    exitoTexto: "Tus labios hicieron la apertura perfecta para 'CA'.",
+    exitoTexto: "Tus labios hicieron la apertura perfecta para 'CA-SA'.",
+    requiereCierreInicial: false,
   },
   'SO-PA': {
     categoria: 'REDONDEO LABIAL',
     fonema: '/s/ - /o/ • SO - PA',
-    paso: 'Paso 1: Redondea tus labios para la "O"',
+    paso: 'Paso 1: Redondea tus labios para la "O" y ciérralos en "PA"',
     indicador: 'Círculo Labial',
     exitoTitulo: '¡Excelente redondeo labial!',
-    exitoTexto: "Tus labios formaron el círculo perfecto para 'SO'.",
+    exitoTexto: "Tus labios formaron el círculo perfecto para 'SO-PA'.",
+    requiereCierreInicial: true,
+  },
+  'A-GUA': {
+    categoria: 'APERTURA VOCÁLICA',
+    fonema: '/a/ - /g/ • A - GUA',
+    paso: 'Paso 1: Abre la boca en "A" y redondea los labios en "GUA"',
+    indicador: 'Soplo Suave',
+    exitoTitulo: '¡Excelente apertura vocálica!',
+    exitoTexto: "Pronunciaste las vocales de 'A-GUA' con gran claridad.",
+    requiereCierreInicial: false,
+  },
+  'ES-TRE-LLA': {
+    categoria: 'SÍLABA TRABADA',
+    fonema: '/s/ - /tr/ • ES - TRE - LLA',
+    paso: 'Paso 1: Sonríe en "ES" y abre claramente en "LLA"',
+    indicador: 'Vibración Continua',
+    exitoTitulo: '¡Excelente articulación!',
+    exitoTexto: "Tus labios marcaron las 3 sílabas de 'ES-TRE-LLA'.",
+    requiereCierreInicial: false,
+  },
+  'SON-RI-SA': {
+    categoria: 'FONEMA VIBRANTE',
+    fonema: '/s/ - /r/ • SON - RI - SA',
+    paso: 'Paso 1: Estira las comisuras en una sonrisa clara para "RI-SA"',
+    indicador: 'Comisura Simétrica',
+    exitoTitulo: '¡Excelente simetría labial!',
+    exitoTexto: "Articulaste 'SON-RI-SA' con simetría perfecta.",
+    requiereCierreInicial: false,
+  },
+  'A-MI-GOS': {
+    categoria: 'VOCAL + BILABIAL',
+    fonema: '/a/ - /m/ • A - MI - GOS',
+    paso: 'Paso 1: Abre en "A", junta los labios en "MI" y redondea en "GOS"',
+    indicador: 'Vibración Nasal',
+    exitoTitulo: '¡Excelente sellado labial!',
+    exitoTexto: "Tus labios articularon cada sílaba de 'A-MI-GOS'.",
+    requiereCierreInicial: true,
   },
 };
 
 const infoDe = (palabra: string): InfoFonema =>
   INFO_FONEMAS[palabra.toUpperCase()] || INFO_FONEMAS['MA-MÁ'];
+
+// Índices de puntos labiales en MediaPipe FaceMesh (478 landmarks)
+const PUNTOS_LABIOS_EXTERIOR = [
+  61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 409, 270, 269, 267, 0, 37,
+  39, 40, 185, 61,
+];
 
 export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
   perfilActivo,
@@ -138,6 +184,10 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
   const [bocaAbierta, setBocaAbierta] = useState(false);
   const [modeloReproduciendo, setModeloReproduciendo] = useState(true);
   const [camaraOk, setCamaraOk] = useState(false);
+  const [rostroAlineado, setRostroAlineado] = useState(false);
+  const [simetriaEnVivo, setSimetriaEnVivo] = useState(0);
+  const [aperturaDetectada, setAperturaDetectada] = useState(false);
+  const [cierreDetectado, setCierreDetectado] = useState(false);
   const [comprobando, setComprobando] = useState(false);
   const [precision, setPrecision] = useState<number>(0);
   const [resultado, setResultado] = useState<'EXITO' | 'CASI'>('EXITO');
@@ -147,7 +197,12 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
   const [avisoIntento, setAvisoIntento] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const faceLandmarkerRef = useRef<FaceLandmarker | null>(null);
+  const muestrasArticulacionRef = useRef<number[]>([]);
+  const vioCierreRef = useRef(false);
+  const vioAperturaRef = useRef(false);
 
   useEffect(() => {
     if (!modeloReproduciendo) return;
@@ -179,9 +234,154 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
     };
   }, []);
 
+  // Seguimiento labial en tiempo real con MediaPipe FaceLandmarker
+  useEffect(() => {
+    if (!camaraOk) return;
+    let activo = true;
+    let frame = 0;
+    let ultimo = -1;
+    let tick = 0;
+
+    const iniciarFaceLandmarker = async () => {
+      try {
+        const vision = await FilesetResolver.forVisionTasks(
+          'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.2.3/wasm'
+        );
+        const landmarker = await FaceLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath:
+              'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+            delegate: 'GPU',
+          },
+          runningMode: 'VIDEO',
+          numFaces: 1,
+        });
+        if (!activo) {
+          landmarker.close();
+          return;
+        }
+        faceLandmarkerRef.current = landmarker;
+
+        const detectarLabios = () => {
+          if (!activo) return;
+          const video = videoRef.current;
+          const canvas = canvasRef.current;
+          const ctx = canvas?.getContext('2d');
+          if (
+            video &&
+            canvas &&
+            ctx &&
+            video.readyState >= 2 &&
+            video.currentTime !== ultimo
+          ) {
+            ultimo = video.currentTime;
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const rostros = landmarker.detectForVideo(
+              video,
+              performance.now()
+            ).faceLandmarks;
+
+            if (rostros && rostros.length > 0) {
+              const lm = rostros[0];
+              setRostroAlineado(true);
+
+              // Puntos clave de labios: 13 (labio sup interior), 14 (labio inf interior), 61 (comisura izq), 291 (comisura der)
+              const sup = lm[13];
+              const inf = lm[14];
+              const izq = lm[61];
+              const der = lm[291];
+
+              const anchoBoca = Math.max(
+                0.02,
+                Math.hypot(der.x - izq.x, der.y - izq.y)
+              );
+              const altoApertura = Math.hypot(inf.x - sup.x, inf.y - sup.y);
+              const ratioApertura = altoApertura / anchoBoca;
+
+              // Simetría horizontal de las comisuras labiales
+              const inclinacionComisuras = Math.abs(der.y - izq.y) / anchoBoca;
+              const simetriaScore = Math.round(
+                Math.min(99, Math.max(55, (1 - inclinacionComisuras * 1.4) * 100))
+              );
+
+              if (ratioApertura < 0.14) {
+                vioCierreRef.current = true;
+              }
+              if (ratioApertura >= 0.2) {
+                vioAperturaRef.current = true;
+              }
+
+              const bonusCiclo =
+                vioCierreRef.current && vioAperturaRef.current
+                  ? 12
+                  : vioAperturaRef.current
+                  ? 5
+                  : -12;
+              const puntajeFrame = Math.min(
+                98,
+                Math.max(40, simetriaScore + bonusCiclo)
+              );
+              muestrasArticulacionRef.current.push(puntajeFrame);
+              if (muestrasArticulacionRef.current.length > 60) {
+                muestrasArticulacionRef.current.shift();
+              }
+
+              tick += 1;
+              if (tick % 4 === 0) {
+                setSimetriaEnVivo(puntajeFrame);
+                setCierreDetectado(vioCierreRef.current);
+                setAperturaDetectada(vioAperturaRef.current);
+              }
+
+              // Dibujar contorno labial en el espejo AR
+              ctx.beginPath();
+              ctx.lineWidth = 3;
+              ctx.strokeStyle =
+                vioCierreRef.current && vioAperturaRef.current
+                  ? '#34D399'
+                  : '#38BDF8';
+              PUNTOS_LABIOS_EXTERIOR.forEach((idx, i) => {
+                const pt = lm[idx];
+                if (!pt) return;
+                const x = pt.x * canvas.width;
+                const y = pt.y * canvas.height;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+              });
+              ctx.stroke();
+            } else {
+              setRostroAlineado(false);
+            }
+          }
+          frame = requestAnimationFrame(detectarLabios);
+        };
+        frame = requestAnimationFrame(detectarLabios);
+      } catch {
+        setRostroAlineado(false);
+      }
+    };
+
+    void iniciarFaceLandmarker();
+    return () => {
+      activo = false;
+      cancelAnimationFrame(frame);
+      faceLandmarkerRef.current?.close();
+      faceLandmarkerRef.current = null;
+    };
+  }, [camaraOk]);
+
   useEffect(() => {
     setComprobando(false);
     setPrecision(0);
+    setSimetriaEnVivo(0);
+    setCierreDetectado(false);
+    setAperturaDetectada(false);
+    vioCierreRef.current = false;
+    vioAperturaRef.current = false;
+    muestrasArticulacionRef.current = [];
     setResultado('EXITO');
     setMostrarResultado(false);
     setCuentoCompletado(false);
@@ -198,10 +398,15 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
     setErrorIntento(null);
     setAvisoIntento(null);
     try {
-      const resultadoGuardado = await onRegistrarIntento(actual.id_ejercicio, valor);
-      const esperaRestante = 1000 - (Date.now() - inicio);
+      const resultadoGuardado = await onRegistrarIntento(
+        actual.id_ejercicio,
+        valor
+      );
+      const esperaRestante = 900 - (Date.now() - inicio);
       if (esperaRestante > 0) {
-        await new Promise((resolve) => window.setTimeout(resolve, esperaRestante));
+        await new Promise((resolve) =>
+          window.setTimeout(resolve, esperaRestante)
+        );
       }
       setPrecision(valor);
       setCuentoCompletado(Boolean(resultadoGuardado.cuento_completado));
@@ -226,22 +431,35 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
   };
 
   const handleListo = () => {
-    const acierto = Math.random() >= 0.35;
-    comprobar(
-      acierto
-        ? Math.floor(84 + Math.random() * 14)
-        : Math.floor(54 + Math.random() * 18)
-    );
+    // Evaluar a partir de las mediciones reales de apertura y simetría labial
+    const muestras = muestrasArticulacionRef.current.slice();
+    if (muestras.length > 0) {
+      muestras.sort((a, b) => b - a);
+      const top = muestras.slice(0, Math.max(1, Math.ceil(muestras.length * 0.4)));
+      const promedio = Math.round(
+        top.reduce((acc, v) => acc + v, 0) / top.length
+      );
+      const penalizacionSinMovimiento =
+        !vioAperturaRef.current && !vioCierreRef.current ? -25 : 0;
+      void comprobar(Math.max(45, Math.min(98, promedio + penalizacionSinMovimiento)));
+      return;
+    }
+    void comprobar(simetriaEnVivo > 0 ? simetriaEnVivo : 86);
   };
-  const ejerciciosCuento = cuentos
-    .find((cuento) => cuento.id_cuento === actual.id_cuento)
-    ?.ejercicios?.slice()
-    .sort((a, b) => a.orden_en_cuento - b.orden_en_cuento) || [];
+
+  const ejerciciosCuento =
+    cuentos
+      .find((cuento) => cuento.id_cuento === actual.id_cuento)
+      ?.ejercicios?.slice()
+      .sort((a, b) => a.orden_en_cuento - b.orden_en_cuento) || [];
   const indiceActual = ejerciciosCuento.findIndex(
     (ejercicio) => ejercicio.id_ejercicio === actual.id_ejercicio
   );
-  const tieneSiguiente = indiceActual >= 0 && indiceActual < ejerciciosCuento.length - 1;
+  const tieneSiguiente =
+    indiceActual >= 0 && indiceActual < ejerciciosCuento.length - 1;
   const tieneAnterior = indiceActual > 0;
+
+  const barraMostrada = mostrarResultado ? precision : simetriaEnVivo;
 
   return (
     <section
@@ -267,10 +485,63 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
         </h1>
       </div>
 
-      {/* 2. Tarjeta del fonema (Wireframe 4):
-             - "FONEMA BILABIAL"
-             - "🔊 /m/ - /a/ • MA - MÁ" | "★★☆"
-             - "💡 Paso 1: Presiona los labios con suavidad" | "〰 Vibración Nasal" */}
+      {/* Selector rápido de palabras del cuento de articulación */}
+      {ejerciciosCuento.length > 1 && (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: '6px',
+            flexWrap: 'wrap',
+          }}
+        >
+          {ejerciciosCuento.map((ej, idx) => {
+            const esActual = ej.id_ejercicio === actual.id_ejercicio;
+            return (
+              <button
+                key={ej.id_ejercicio}
+                type="button"
+                onClick={() => {
+                  if (idx !== indiceActual) {
+                    onCambiarSena(
+                      actual.id_ejercicio,
+                      idx > indiceActual ? 1 : -1
+                    );
+                  }
+                }}
+                style={{
+                  minHeight: '48px',
+                  padding: '6px 12px',
+                  borderRadius: '999px',
+                  fontSize: '0.82rem',
+                  backgroundColor: esActual
+                    ? 'var(--primary-aaa)'
+                    : ej.aprobada
+                    ? 'var(--success-bg)'
+                    : 'var(--bg-surface)',
+                  color: esActual
+                    ? '#FFFFFF'
+                    : ej.aprobada
+                    ? 'var(--success-text)'
+                    : 'var(--text-primary)',
+                  border: `2px solid ${
+                    esActual
+                      ? 'var(--primary-aaa)'
+                      : ej.aprobada
+                      ? 'var(--success-border)'
+                      : 'var(--border-strong)'
+                  }`,
+                }}
+              >
+                {ej.aprobada ? '✓ ' : `${idx + 1}. `}
+                {ej.palabra_o_sena}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 2. Tarjeta del fonema (Wireframe 4) */}
       <div className="card-aaa">
         <div
           style={{
@@ -333,9 +604,9 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
               color: '#0052A3',
               whiteSpace: 'nowrap',
             }}
-            aria-label="2 de 3 estrellas"
+            aria-label="Estrellas del ejercicio"
           >
-            ★★☆
+            {actual.aprobada ? '★★★' : '★★☆'}
           </span>
         </div>
 
@@ -443,7 +714,7 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
         </div>
       </div>
 
-      {/* 4. Tarjeta Espejo AR con cámara (Pila vertical, Wireframe 4) */}
+      {/* 4. Tarjeta Espejo AR con cámara y FaceLandmarker (Wireframe 4) */}
       <div
         className="card-aaa"
         style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}
@@ -461,6 +732,11 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
             style={{ display: camaraOk ? 'block' : 'none' }}
             aria-label="Espejo de cámara para articulación oral"
           />
+          <canvas
+            ref={canvasRef}
+            className="hand-landmarks-canvas"
+            aria-hidden="true"
+          />
           <span
             className="pill-label"
             style={{
@@ -468,11 +744,13 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
               top: '12px',
               left: '12px',
               zIndex: 6,
-              backgroundColor: '#10B981',
+              backgroundColor: rostroAlineado ? '#10B981' : '#0052A3',
               color: '#FFFFFF',
             }}
           >
-            ✓ Alineado
+            {rostroAlineado
+              ? `✓ Alineado (${simetriaEnVivo}%)`
+              : '📷 Alinea tus labios'}
           </span>
 
           {/* Guía labial punteada en el centro del espejo AR */}
@@ -484,15 +762,17 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
               width: '165px',
               height: '96px',
               borderRadius: '48px',
-              border: '3px dashed #34D399',
-              backgroundColor: 'rgba(16, 185, 129, 0.15)',
+              border: `3px dashed ${
+                cierreDetectado && aperturaDetectada ? '#34D399' : '#38BDF8'
+              }`,
+              backgroundColor: 'rgba(16, 185, 129, 0.14)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: '2.5rem',
             }}
           >
-            👄
+            { !rostroAlineado && '👄' }
           </div>
         </div>
 
@@ -519,7 +799,7 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
             <div className="progress-track-aaa" style={{ height: '10px' }}>
               <div
                 className="progress-fill-aaa"
-                style={{ width: `${precision}%` }}
+                style={{ width: `${barraMostrada}%` }}
               />
             </div>
           </div>
@@ -539,7 +819,9 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
               }}
             >
               {!mostrarResultado
-                ? 'Listo para practicar'
+                ? cierreDetectado && aperturaDetectada
+                  ? '✓ ¡Movimiento detectado!'
+                  : 'Junta y abre tus labios'
                 : esNoLector
                 ? '✓ OK'
                 : resultado === 'CASI'
@@ -549,11 +831,11 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
             <div className="progress-track-aaa" style={{ height: '10px' }}>
               <div
                 className={
-                  !mostrarResultado || resultado === 'CASI'
+                  mostrarResultado && resultado === 'CASI'
                     ? 'progress-fill-aaa'
                     : 'progress-fill-success'
                 }
-                style={{ width: `${precision}%` }}
+                style={{ width: `${barraMostrada}%` }}
               />
             </div>
           </div>
@@ -604,71 +886,86 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
         </button>
       </div>
 
-      {/* 6. Tarjeta verde menta inferior idéntica al Wireframe 4:
-             "😊 ¡Excelente sellado labial! Tus labios hicieron el contacto perfecto para 'MA'." */}
+      {/* 6. Tarjeta verde menta inferior idéntica al Wireframe 4 */}
       {comprobando && (
         <div className="result-saving" role="status" aria-live="polite">
           <span className="hand-loader" aria-hidden="true" />
-          Guardando resultado…
+          Calificando articulación labial…
         </div>
       )}
       {errorIntento && (
-        <div className="card-aaa" role="alert" style={{ borderColor: 'var(--warn-border)' }}>
+        <div
+          className="card-aaa"
+          role="alert"
+          style={{ borderColor: 'var(--warn-border)' }}
+        >
           {errorIntento}
         </div>
       )}
       {avisoIntento && (
-        <div className="card-aaa" role="status" style={{ borderColor: 'var(--warn-border)' }}>
+        <div
+          className="card-aaa"
+          role="status"
+          style={{ borderColor: 'var(--warn-border)' }}
+        >
           {avisoIntento}
         </div>
       )}
 
-      {mostrarResultado && <div
-        className="card-aaa"
-        role="status"
-        aria-live="polite"
-        style={{
-          backgroundColor:
-            resultado === 'CASI' ? 'var(--warn-bg)' : '#DCFCE7',
-          borderColor:
-            resultado === 'CASI' ? 'var(--warn-border)' : '#10B981',
-          color: resultado === 'CASI' ? 'var(--warn-text)' : '#064E3B',
-          borderWidth: '2px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '1.9rem' }} aria-hidden="true">
-            {resultado === 'CASI' ? '💪' : '😊'}
-          </span>
-          <div style={{ flex: 1 }}>
-            <h2 className="section-title" style={{ color: 'inherit' }}>
-              {resultado === 'CASI'
-                ? '¡Casi! Intenta otra vez'
-                : info.exitoTitulo}
-            </h2>
-            {!esNoLector && (
-              <p
-                style={{
-                  margin: '2px 0 0 0',
-                  fontSize: '0.88rem',
-                  fontWeight: 600,
-                }}
-              >
+      {mostrarResultado && (
+        <div
+          className="card-aaa"
+          role="status"
+          aria-live="polite"
+          style={{
+            backgroundColor:
+              resultado === 'CASI' ? 'var(--warn-bg)' : '#DCFCE7',
+            borderColor:
+              resultado === 'CASI' ? 'var(--warn-border)' : '#10B981',
+            color: resultado === 'CASI' ? 'var(--warn-text)' : '#064E3B',
+            borderWidth: '2px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontSize: '1.9rem' }} aria-hidden="true">
+              {resultado === 'CASI' ? '💪' : '😊'}
+            </span>
+            <div style={{ flex: 1 }}>
+              <h2 className="section-title" style={{ color: 'inherit' }}>
                 {resultado === 'CASI'
-                  ? 'Observa el fonema lento y vuelve a intentarlo.'
-                  : info.exitoTexto}
-              </p>
-            )}
+                  ? '¡Casi! Intenta otra vez'
+                  : info.exitoTitulo}
+              </h2>
+              {!esNoLector && (
+                <p
+                  style={{
+                    margin: '2px 0 0 0',
+                    fontSize: '0.88rem',
+                    fontWeight: 600,
+                  }}
+                >
+                  {resultado === 'CASI'
+                    ? 'Observa el fonema lento y vuelve a intentarlo.'
+                    : `${info.exitoTexto} (+25 ★)`}
+                </p>
+              )}
+            </div>
+            <strong style={{ fontSize: '1.35rem', whiteSpace: 'nowrap' }}>
+              ✨ {precision}%
+            </strong>
           </div>
-          <strong style={{ fontSize: '1.35rem', whiteSpace: 'nowrap' }}>
-            ✨ {precision}%
-          </strong>
         </div>
-      </div>}
+      )}
 
       {cuentoCompletado ? (
-        <div className="cuento-completado-celebracion" role="status" aria-live="polite">
-          <span className="destellos-cuento" aria-hidden="true">✨ ⭐ ✨</span>
+        <div
+          className="cuento-completado-celebracion"
+          role="status"
+          aria-live="polite"
+        >
+          <span className="destellos-cuento" aria-hidden="true">
+            ✨ ⭐ ✨
+          </span>
           <h2 className="section-title">¡Terminaste el cuento!</h2>
           <button
             type="button"
@@ -687,31 +984,36 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
               setErrorIntento(null);
             }}
           >
-            Practicar esta seña otra vez
+            Practicar esta palabra otra vez
           </button>
         </div>
-      ) : mostrarResultado && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <button
-            type="button"
-            className="btn-secondary-aaa"
-            onClick={() => {
-              setMostrarResultado(false);
-              setErrorIntento(null);
-            }}
-          >
-            Intentar de nuevo
-          </button>
-          {(precision > 60 || actual.aprobada) && tieneSiguiente && (
+      ) : (
+        mostrarResultado && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <button
               type="button"
-              className="btn-primary-aaa"
-              onClick={() => onCambiarSena(actual.id_ejercicio, 1)}
+              className="btn-secondary-aaa"
+              onClick={() => {
+                setMostrarResultado(false);
+                setErrorIntento(null);
+                vioCierreRef.current = false;
+                vioAperturaRef.current = false;
+                muestrasArticulacionRef.current = [];
+              }}
             >
-              Siguiente seña
+              Intentar de nuevo
             </button>
-          )}
-        </div>
+            {(precision > 60 || actual.aprobada) && tieneSiguiente && (
+              <button
+                type="button"
+                className="btn-primary-aaa"
+                onClick={() => onCambiarSena(actual.id_ejercicio, 1)}
+              >
+                Siguiente palabra →
+              </button>
+            )}
+          </div>
+        )
       )}
       {cuentoCompletado && (
         <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
@@ -721,7 +1023,7 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
               className="btn-secondary-aaa"
               onClick={() => onCambiarSena(actual.id_ejercicio, -1)}
             >
-              Seña anterior
+              Palabra anterior
             </button>
           )}
           {tieneSiguiente && (
@@ -730,7 +1032,7 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
               className="btn-secondary-aaa"
               onClick={() => onCambiarSena(actual.id_ejercicio, 1)}
             >
-              Practicar siguiente seña
+              Practicar siguiente palabra
             </button>
           )}
         </div>
@@ -754,7 +1056,7 @@ export const ModuloArticulacionView: React.FC<ModuloArticulacionViewProps> = ({
               className="btn-secondary-aaa"
               style={{ flex: 1 }}
               disabled={comprobando || mostrarResultado}
-              onClick={() => comprobar(60)}
+              onClick={() => comprobar(58)}
             >
               ✗ Simular fallo
             </button>

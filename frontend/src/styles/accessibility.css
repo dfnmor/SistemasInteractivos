@@ -740,10 +740,10 @@ button:active {
     padding: 24px 28px;
   }
   .ar-camera-stage {
-    min-height: 380px;
+    min-height: 460px;
   }
   .ar-video-element {
-    height: 380px;
+    height: 460px;
   }
 }
 
@@ -752,7 +752,7 @@ button:active {
  * ============================================================================= */
 .camara-lsm-stage {
   position: relative;
-  min-height: 340px;
+  min-height: 450px;
   padding: 0;
 }
 
@@ -836,17 +836,18 @@ button:active {
 
 .sena-imagen {
   box-sizing: border-box;
-  width: 220px;
-  height: 180px;
-  padding: 8px;
-  border-radius: 14px;
+  width: 190px;
+  height: 190px;
+  padding: 6px;
+  border-radius: 16px;
   background: #ffffff;
   object-fit: contain;
+  flex-shrink: 0;
 }
 
 .sena-imagen-pequena {
-  width: 88px;
-  height: 68px;
+  width: 80px;
+  height: 80px;
   padding: 4px;
 }
 
@@ -857,7 +858,7 @@ button:active {
 .sena-intro-title,
 .sena-intro-word {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   font-weight: 700;
 }
 
@@ -866,7 +867,8 @@ button:active {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 180px;
+  min-height: 190px;
+  flex-shrink: 0;
   font-size: 4.2rem;
   line-height: 1;
 }
@@ -1049,15 +1051,26 @@ button:active {
   position: absolute;
   inset: 0;
   z-index: 20;
-  background-color: rgba(15, 23, 42, 0.94);
+  background-color: rgba(15, 23, 42, 0.95);
   color: #ffffff;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 14px;
-  padding: 18px;
+  justify-content: flex-start;
+  overflow-y: auto;
+  gap: 10px;
+  padding: 16px;
   text-align: center;
+}
+
+.prep-overlay > :first-child,
+.referencia-overlay > :first-child {
+  margin-top: auto;
+}
+
+.prep-overlay > :last-child,
+.referencia-overlay > :last-child {
+  margin-bottom: auto;
 }
 
 .prep-pasos {
